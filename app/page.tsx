@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import mammoth from 'mammoth'
-import * as pdfjsLib from 'pdfjs-dist'
 
 interface User {
   username: string
