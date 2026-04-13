@@ -459,8 +459,8 @@ function parseScript(content: string): ParseResult {
   // 收集所有角色
   const charSet = new Set<string>()
   scenes.forEach(s => {
-    s.characters.forEach(c => charSet.add(c))
-    if (s.dialogue) s.dialogue.forEach(d => charSet.add(d.speaker))
+    s.characters.forEach((c: string) => charSet.add(c))
+    if (s.dialogue) s.dialogue.forEach((d: DialogueLine) => charSet.add(d.speaker))
   })
   
   return {
