@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-// mammoth will be dynamically imported
 
 interface User {
   username: string
@@ -153,19 +152,8 @@ export default function Home() {
       
       if (fileName.endsWith('.txt') || fileName.endsWith('.md')) {
         // 纯文本文件
-        text = await file.text()
-      } else if (fileName.endsWith('.docx')) {
-        // Word文档 (.docx) - 使用动态导入
-        const arrayBuffer = await file.arrayBuffer()
-        const mammoth = (await import('mammoth')).default
-        const result = await mammoth.extractRawText({ arrayBuffer })
-        text = result.value else if (fileName.endsWith('.doc')) {
-        // 旧版Word文档 (.doc) - 提示用户转换
-        setMessage('暂不支持.doc格式，请将文件另存为.docx或.txt格式后上传')
-        setLoading(false)
-        return
-      } else {
-        setMessage('不支持的文件格式，请上传 .txt / .md / .docx 文件')
+        text = await file.text() else else {
+        setMessage('不支持的文件格式，请上传 .txt / .md 文件')
         setLoading(false)
         return
       }
@@ -532,9 +520,9 @@ export default function Home() {
           <div className="upload-area" onClick={() => document.getElementById('fileInput')?.click()}>
             <div style={{fontSize:'48px',marginBottom:'16px',opacity:0.6'}}>📄</div>
             <p style={{fontSize:'18px',marginBottom:'8px'}}>点击上传剧本文件</p>
-            <p style={{fontSize:'14px',color:'var(--text-secondary)',marginBottom:'16px'}}>支持 .txt / .md / .docx 格式</p>
+            <p style={{fontSize:'14px',color:'var(--text-secondary)',marginBottom:'16px'}}>支持 .txt / .md 格式</p>
             <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>数据将自动保存到您的账户</p>
-            <input id="fileInput" type="file" accept=".txt,.md,.docx" style={{display:'none'}} onChange={(e) => {
+            <input id="fileInput" type="file" accept=".txt,.md" style={{display:'none'}} onChange={(e) => {
               if (e.target.files?.[0]) handleFileUpload(e.target.files[0])
             }} />
           </div>
