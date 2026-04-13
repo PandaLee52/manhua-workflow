@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
+import mammoth from 'mammoth'
+import * as pdfjsLib from 'pdfjs-dist'
 
 interface User {
   username: string
@@ -96,7 +98,41 @@ export default function Home() {
   const handleFileUpload = async (file: File) => {
     setLoading(true)
     try {
-      const text = await file.text()
+      let text = ''
+      const fileName = file.name.toLowerCase()
+      
+      if (fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+        // 纯文本文件
+        text = await file.text()
+      } else if (fileName.endsWith('.docx')) {
+        // Word文档 (.docx)
+        const arrayBuffer = await file.arrayBuffer()
+        const result = await mammoth.extractRawText({ arrayBuffer })
+        text = result.value
+      } else if (fileName.endsWith('.pdf')) {
+        // PDF文件
+        const arrayBuffer = await file.arrayBuffer()
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        let fullText = ''
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i)
+          const content = await page.getTextContent()
+          const pageText = content.items.map((item: any) => item.str).join(' ')
+          fullText += pageText + '\n'
+        }
+        text = fullText
+      } else if (fileName.endsWith('.doc')) {
+        // 旧版Word文档 (.doc) - 提示用户转换
+        setMessage('暂不支持.doc格式，请将文件另存为.docx或.txt格式后上传')
+        setLoading(false)
+        return
+      } else {
+        setMessage('不支持的文件格式，请上传 .txt / .md / .docx / .pdf 文件')
+        setLoading(false)
+        return
+      }
+      
       const result = parseScript(text)
       setParseResult(result)
       setMessage('解析成功！')
@@ -106,6 +142,9 @@ export default function Home() {
     } catch (err) {
       setMessage('解析失败: ' + (err as Error).message)
     }
+    setLoading(false)
+  }
+
     setLoading(false)
   }
 
@@ -306,9 +345,9 @@ export default function Home() {
           <div className="upload-area" onClick={() => document.getElementById('fileInput')?.click()}>
             <div style={{fontSize:'48px',marginBottom:'16px',opacity:0.6}}>📄</div>
             <p style={{fontSize:'18px',marginBottom:'8px'}}>点击上传剧本文件</p>
-            <p style={{fontSize:'14px',color:'var(--text-secondary)',marginBottom:'16px'}}>支持 .txt / .md 格式</p>
+            <p style={{fontSize:'14px',color:'var(--text-secondary)',marginBottom:'16px'}}>支持 .txt / .md / .docx / .pdf 格式</p>
             <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>数据将自动保存到您的账户</p>
-            <input id="fileInput" type="file" accept=".txt,.md" style={{display:'none'}} onChange={(e) => {
+            <input id="fileInput" type="file" accept=".txt,.md,.docx,.pdf" style={{display:'none'}} onChange={(e) => {
               if (e.target.files?.[0]) handleFileUpload(e.target.files[0])
             }} />
           </div>

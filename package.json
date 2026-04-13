@@ -1,6 +1,6 @@
 {
   "name": "manhua-workflow-full",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,6 +10,8 @@
     "@supabase/supabase-js": "^2.103.0",
     "better-sqlite3": "^12.9.0",
     "jszip": "^3.10.1",
+    "mammoth": "^1.6.0",
+    "pdfjs-dist": "^4.0.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
