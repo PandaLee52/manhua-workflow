@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '../../../lib/supabase'
 import crypto from 'crypto'
 
 function verifyToken(token: string): { username: string } | null {
