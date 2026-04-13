@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>解说漫提示词生成器</title>
+    <title>爆款解说漫生成器</title>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -32,8 +32,8 @@
         }
         
         .header h1 {
-            font-size: 1.8rem;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            font-size: 2rem;
+            background: linear-gradient(90deg, #f093fb, #f5576c, #ff9a9e);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
@@ -44,13 +44,28 @@
             font-size: 0.9rem;
         }
         
+        .hot-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
         .main-layout {
             display: grid;
-            grid-template-columns: 300px 1fr;
+            grid-template-columns: 350px 1fr;
             gap: 1.5rem;
         }
         
-        @media (max-width: 900px) {
+        @media (max-width: 1000px) {
             .main-layout {
                 grid-template-columns: 1fr;
             }
@@ -66,11 +81,11 @@
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.1);
-            padding: 1.25rem;
+            padding: 1rem;
         }
         
         .card-title {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 0.75rem;
             display: flex;
@@ -78,18 +93,111 @@
             gap: 0.5rem;
         }
         
-        .form-group {
+        /* 爆款模板库 */
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .template-card {
+            padding: 0.6rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .template-card:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+        
+        .template-card.active {
+            background: rgba(245, 87, 108, 0.2);
+            border-color: #f5576c;
+        }
+        
+        .template-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .template-data {
+            font-size: 0.7rem;
+            color: #f5576c;
+        }
+        
+        /* 爆款题材 */
+        .genre-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        
+        .genre-tag {
+            padding: 0.3rem 0.6rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .genre-tag.active {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-color: transparent;
+        }
+        
+        /* 爆款评分 */
+        .score-display {
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.1));
+            border-radius: 12px;
             margin-bottom: 0.75rem;
         }
         
-        .form-label {
-            display: block;
-            font-size: 0.8rem;
-            color: #aaa;
-            margin-bottom: 0.4rem;
+        .score-value {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
-        textarea, input, select {
+        .score-label {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 0.25rem;
+        }
+        
+        .score-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
+        
+        /* 主内容 */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        textarea, input {
             width: 100%;
             background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.2);
@@ -99,18 +207,19 @@
             font-size: 0.85rem;
         }
         
-        textarea:focus, input:focus, select:focus {
+        textarea:focus, input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #f5576c;
         }
         
         textarea {
-            min-height: 100px;
+            min-height: 120px;
             resize: vertical;
+            line-height: 1.6;
         }
         
         .btn {
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1.2rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -119,15 +228,15 @@
             transition: all 0.3s;
         }
         
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .btn-hot {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
             color: white;
             width: 100%;
         }
         
-        .btn-primary:hover {
+        .btn-hot:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4);
         }
         
         .btn-secondary {
@@ -136,101 +245,101 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
         
-        /* 钩子模板 */
-        .hook-templates {
+        /* 爆款分析 */
+        .analysis-section {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.05), rgba(245, 87, 108, 0.05));
+            border: 1px solid rgba(245, 87, 108, 0.2);
+        }
+        
+        .check-list {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
         
-        .hook-template {
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
             padding: 0.5rem;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
             border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
             font-size: 0.8rem;
         }
         
-        .hook-template:hover {
-            background: rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+        .check-icon {
+            font-size: 1rem;
         }
         
-        .hook-template.active {
-            background: rgba(102, 126, 234, 0.3);
-            border-color: #667eea;
+        .check-content {
+            flex: 1;
         }
         
-        .hook-name {
+        .check-title {
             font-weight: 500;
             margin-bottom: 0.25rem;
         }
         
-        .hook-example {
+        .check-detail {
             color: #999;
             font-size: 0.75rem;
         }
         
-        /* 题材标签 */
-        .genre-tags {
+        .check-pass {
+            border-left: 2px solid #4CAF50;
+        }
+        
+        .check-fail {
+            border-left: 2px solid #f44336;
+        }
+        
+        .check-warn {
+            border-left: 2px solid #ff9800;
+        }
+        
+        /* 优化建议 */
+        .optimize-section {
+            display: none;
+        }
+        
+        .optimize-section.show {
+            display: block;
+        }
+        
+        .optimize-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .optimize-header {
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-        }
-        
-        .genre-tag {
-            padding: 0.3rem 0.6rem;
-            background: rgba(102, 126, 234, 0.2);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 20px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .genre-tag:hover, .genre-tag.active {
-            background: #667eea;
-            border-color: #667eea;
-        }
-        
-        /* 主内容区 */
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        
-        /* 解说文案区 */
-        .narration-section {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border: 1px solid rgba(102, 126, 234, 0.3);
-        }
-        
-        .narration-input {
-            min-height: 150px;
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-        
-        .narration-stats {
-            display: flex;
-            gap: 1rem;
-            margin-top: 0.5rem;
-            font-size: 0.75rem;
-            color: #999;
-        }
-        
-        .stat-item {
-            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.25rem;
+            margin-bottom: 0.5rem;
         }
         
-        .stat-value {
-            color: #667eea;
+        .optimize-label {
+            font-size: 0.8rem;
+            color: #f5576c;
             font-weight: 500;
+        }
+        
+        .optimize-original {
+            font-size: 0.8rem;
+            color: #999;
+            text-decoration: line-through;
+            margin-bottom: 0.5rem;
+        }
+        
+        .optimize-improved {
+            font-size: 0.85rem;
+            color: #4CAF50;
+            padding: 0.5rem;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
         }
         
         /* 输出区 */
@@ -238,16 +347,10 @@
             flex: 1;
         }
         
-        .output-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-        
         .output-tabs {
             display: flex;
             gap: 0.5rem;
+            margin-bottom: 0.75rem;
         }
         
         .output-tab {
@@ -261,319 +364,272 @@
         }
         
         .output-tab.active {
-            background: #667eea;
-            border-color: #667eea;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-color: transparent;
         }
         
         .output-content {
             background: rgba(0,0,0,0.4);
             border-radius: 8px;
             padding: 1rem;
-            min-height: 300px;
+            min-height: 200px;
             font-size: 0.85rem;
             white-space: pre-wrap;
             line-height: 1.6;
         }
         
-        /* 分镜预览 */
-        .storyboard-preview {
+        /* 分镜卡片 */
+        .storyboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 0.75rem;
-            margin-top: 1rem;
         }
         
-        .storyboard-card {
+        .shot-card {
             background: rgba(0,0,0,0.3);
             border-radius: 8px;
             padding: 0.75rem;
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .storyboard-header {
+        .shot-header {
             display: flex;
             justify-content: space-between;
             margin-bottom: 0.5rem;
-            font-size: 0.75rem;
         }
         
-        .storyboard-shot {
-            color: #667eea;
+        .shot-type {
+            font-size: 0.75rem;
+            color: #f5576c;
             font-weight: 500;
         }
         
-        .storyboard-duration {
+        .shot-time {
+            font-size: 0.75rem;
             color: #4CAF50;
         }
         
-        .storyboard-desc {
+        .shot-desc {
             font-size: 0.8rem;
-            color: #bbb;
             margin-bottom: 0.5rem;
         }
         
-        .storyboard-narration {
+        .shot-narration {
             font-size: 0.75rem;
             color: #999;
             padding: 0.5rem;
             background: rgba(0,0,0,0.2);
             border-radius: 4px;
-            max-height: 60px;
-            overflow: hidden;
+            line-height: 1.5;
         }
         
-        /* 提示信息 */
-        .tip-box {
-            background: rgba(255, 152, 0, 0.1);
-            border-left: 3px solid #ff9800;
-            padding: 0.5rem 0.75rem;
-            margin-top: 0.5rem;
-            font-size: 0.75rem;
-            color: #ffcc80;
-        }
-        
-        .tip-box.success {
-            background: rgba(76, 175, 80, 0.1);
-            border-left-color: #4CAF50;
-            color: #a5d6a7;
-        }
-        
-        /* 平台选择 */
-        .platform-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-        }
-        
-        .platform-btn {
-            padding: 0.5rem;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 6px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.8rem;
-        }
-        
-        .platform-btn:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .platform-btn.active {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.2);
-        }
-        
-        /* 风格选择 */
-        .style-options {
+        /* 统计信息 */
+        .stats-row {
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
         }
         
-        .style-option {
-            padding: 0.25rem 0.6rem;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 15px;
+        .stat-item {
             font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.3s;
         }
         
-        .style-option:hover, .style-option.active {
-            background: #667eea;
-            border-color: #667eea;
+        .stat-label {
+            color: #999;
         }
         
-        /* 字数提示 */
-        .char-count {
-            text-align: right;
-            font-size: 0.7rem;
-            color: #666;
-            margin-top: 0.25rem;
+        .stat-value {
+            color: #f5576c;
+            font-weight: 500;
         }
         
-        .char-count.warning {
-            color: #ff9800;
+        /* 爆款公式 */
+        .formula-box {
+            background: rgba(245, 87, 108, 0.1);
+            border: 1px solid rgba(245, 87, 108, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
         }
         
-        .char-count.error {
-            color: #f44336;
+        .formula-title {
+            font-size: 0.8rem;
+            color: #f5576c;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .formula-text {
+            font-size: 0.8rem;
+            color: #ccc;
+            line-height: 1.5;
+        }
+        
+        .formula-highlight {
+            color: #f5576c;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>🎬 解说漫提示词生成器</h1>
-            <p class="header-subtitle">专注解说漫 · 旁白节奏优化 · 爆款钩子植入</p>
+            <h1>🔥 爆款解说漫生成器 <span class="hot-badge">HOT</span></h1>
+            <p class="header-subtitle">对标15部亿级爆款 · 自动检测优化 · 直出爆款内容</p>
         </header>
         
         <div class="main-layout">
-            <!-- 左侧配置栏 -->
+            <!-- 左侧：配置 -->
             <div class="sidebar">
-                <!-- 钩子模板 -->
+                <!-- 爆款评分 -->
                 <div class="card">
-                    <div class="card-title">🎣 爆款钩子模板</div>
-                    <div class="hook-templates">
-                        <div class="hook-template active" onclick="selectHook(this, 'suspense')">
-                            <div class="hook-name">悬念开篇</div>
-                            <div class="hook-example">例："他竟然..." "没想到..."</div>
-                        </div>
-                        <div class="hook-template" onclick="selectHook(this, 'contrast')">
-                            <div class="hook-name">反差开篇</div>
-                            <div class="hook-example">例："原本以为...结果..."</div>
-                        </div>
-                        <div class="hook-template" onclick="selectHook(this, 'result')">
-                            <div class="hook-name">结果前置</div>
-                            <div class="hook-example">例："最后他成功了，但..."</div>
-                        </div>
-                        <div class="hook-template" onclick="selectHook(this, 'question')">
-                            <div class="hook-name">提问开篇</div>
-                            <div class="hook-example">例："你见过..." "为什么..."</div>
+                    <div class="score-display">
+                        <div class="score-value" id="scoreValue">0</div>
+                        <div class="score-label">爆款潜力评分</div>
+                        <div class="score-bar">
+                            <div class="score-fill" id="scoreFill" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 题材选择 -->
+                <!-- 爆款模板 -->
                 <div class="card">
-                    <div class="card-title">📚 爆款题材</div>
-                    <div class="genre-tags">
-                        <div class="genre-tag active" onclick="toggleGenre(this, '逆袭')">逆袭</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '重生')">重生</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '复仇')">复仇</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '甜宠')">甜宠</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '修仙')">修仙</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '穿越')">穿越</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '霸总')">霸总</div>
-                        <div class="genre-tag" onclick="toggleGenre(this, '沙雕')">沙雕</div>
+                    <div class="card-title">📋 爆款模板库</div>
+                    <div class="template-grid">
+                        <div class="template-card active" onclick="selectTemplate(this, 'suspense')">
+                            <div class="template-name">悬念反转</div>
+                            <div class="template-data">播放增量1.8亿</div>
+                        </div>
+                        <div class="template-card" onclick="selectTemplate(this, 'revenge')">
+                            <div class="template-name">复仇逆袭</div>
+                            <div class="template-data">播放增量1.5亿</div>
+                        </div>
+                        <div class="template-card" onclick="selectTemplate(this, 'rebirth')">
+                            <div class="template-name">重生开挂</div>
+                            <div class="template-data">日增5127万</div>
+                        </div>
+                        <div class="template-card" onclick="selectTemplate(this, 'sweet')">
+                            <div class="template-name">甜宠沙雕</div>
+                            <div class="template-data">月播1.5亿</div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- 风格选择 -->
+                <!-- 爆款题材 -->
                 <div class="card">
-                    <div class="card-title">🎨 画面风格</div>
-                    <div class="style-options">
-                        <div class="style-option active" onclick="toggleStyle(this, '日系动漫')">日系动漫</div>
-                        <div class="style-option" onclick="toggleStyle(this, '韩漫')">韩漫</div>
-                        <div class="style-option" onclick="toggleStyle(this, '写实')">写实</div>
-                        <div class="style-option" onclick="toggleStyle(this, '古风')">古风</div>
-                        <div class="style-option" onclick="toggleStyle(this, '赛博朋克')">赛博朋克</div>
+                    <div class="card-title">🎯 爆款题材</div>
+                    <div class="genre-grid">
+                        <div class="genre-tag active" onclick="toggleGenre(this)">逆袭</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">重生</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">复仇</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">甜宠</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">修仙</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">霸总</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">穿越</div>
+                        <div class="genre-tag" onclick="toggleGenre(this)">沙雕</div>
                     </div>
                 </div>
                 
-                <!-- 平台选择 -->
-                <div class="card">
-                    <div class="card-title">🎯 目标平台</div>
-                    <div class="platform-grid">
-                        <div class="platform-btn active" onclick="selectPlatform(this, 'kling')">可灵AI</div>
-                        <div class="platform-btn" onclick="selectPlatform(this, 'jimeng')">即梦</div>
-                        <div class="platform-btn" onclick="selectPlatform(this, 'runway')">Runway</div>
-                        <div class="platform-btn" onclick="selectPlatform(this, 'vidu')">Vidu</div>
-                    </div>
-                </div>
-                
-                <!-- 角色信息 -->
+                <!-- 主角设定 -->
                 <div class="card">
                     <div class="card-title">👤 主角设定</div>
-                    <div class="form-group">
-                        <input type="text" id="protagonist" placeholder="主角名字" value="陈默">
-                    </div>
-                    <div class="form-group">
-                        <input type="text" id="protagonistDesc" placeholder="主角特征（如：冷面总裁、逆袭少年）" value="冷面总裁">
+                    <input type="text" id="protagonist" placeholder="主角名字" value="陈默" style="margin-bottom: 0.5rem;">
+                    <input type="text" id="protagonistDesc" placeholder="主角身份/特征" value="被赶出公司的天才程序员">
+                </div>
+                
+                <!-- 爆款公式 -->
+                <div class="card">
+                    <div class="card-title">📊 爆款公式</div>
+                    <div class="formula-box">
+                        <div class="formula-title">当前模板：悬念反转</div>
+                        <div class="formula-text">
+                            <span class="formula-highlight">3秒钩子</span>：抛出悬念/反转<br>
+                            <span class="formula-highlight">10秒铺垫</span>：建立期待<br>
+                            <span class="formula-highlight">90秒爆点</span>：情绪释放<br>
+                            <span class="formula-highlight">结尾钩子</span>：留悬念引追剧
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- 主内容区 -->
+            <!-- 右侧：主内容 -->
             <div class="main-content">
-                <!-- 解说文案输入 -->
-                <div class="card narration-section">
-                    <div class="card-title">📝 解说文案（核心）</div>
-                    <textarea id="narrationText" class="narration-input" placeholder="输入解说文案，每句话对应一个镜头...
+                <!-- 解说文案 -->
+                <div class="card">
+                    <div class="card-title">📝 解说文案</div>
+                    <textarea id="narrationInput" placeholder="输入或粘贴你的解说文案...
 
-例：
-陈默站在落地窗前，望着城市的灯火。
-他没想到，三年前那个被他赶出公司的女人，如今竟然成了他的竞争对手。
-更让他没想到的是，她手上握着的，正是能够让他破产的关键证据。" oninput="updateNarrationStats()">陈默站在落地窗前，望着城市的灯火。
+爆款开头公式：
+- 悬念型："他竟然..." "没想到..."
+- 反转型："原本以为...结果..."
+- 结果前置："最后他成功了，但..."
+- 提问型："你见过...吗？"
 
-他没想到，三年前那个被他赶出公司的女人，如今竟然成了他的竞争对手。
+每句话对应一个镜头，系统自动优化。" oninput="analyzeContent()">陈默站在落地窗前，望着城市的灯火。
 
-更让他没想到的是，她手上握着的，正是能够让他破产的关键证据。</textarea>
-                    
-                    <div class="narration-stats">
-                        <div class="stat-item">镜头数：<span class="stat-value" id="shotCount">3</span></div>
-                        <div class="stat-item">总字数：<span class="stat-value" id="charCount">67</span></div>
-                        <div class="stat-item">预估时长：<span class="stat-value" id="estimatedDuration">15秒</span></div>
+他没想到，三年前那个被他亲手赶出公司的女人，如今竟然成了他的竞争对手。
+
+更让他震惊的是，她手上握着的证据，足以让他倾家荡产。
+
+而这一切的起因，只是因为他当年的一念之差。
+
+现在，他只有一个选择：跪求她的原谅，或者看着自己苦心经营的帝国崩塌。</textarea>
+                    <div class="stats-row">
+                        <div class="stat-item"><span class="stat-label">镜头：</span><span class="stat-value" id="shotCount">5</span></div>
+                        <div class="stat-item"><span class="stat-label">字数：</span><span class="stat-value" id="charCount">98</span></div>
+                        <div class="stat-item"><span class="stat-label">时长：</span><span class="stat-value" id="duration">22秒</span></div>
                     </div>
-                    
-                    <div id="hookTip" class="tip-box success">
-                        ✅ 检测到悬念钩子："没想到" × 2，能有效抓住观众注意力
+                </div>
+                
+                <!-- 爆款检测 -->
+                <div class="card analysis-section">
+                    <div class="card-title">🔍 爆款要素检测</div>
+                    <div class="check-list" id="checkList">
+                        <!-- 动态生成 -->
                     </div>
+                </div>
+                
+                <!-- 优化建议 -->
+                <div class="card optimize-section" id="optimizeSection">
+                    <div class="card-title">✨ 爆款优化建议</div>
+                    <div id="optimizeList">
+                        <!-- 动态生成 -->
+                    </div>
+                    <button class="btn btn-hot" onclick="applyOptimizations()" style="margin-top: 0.75rem;">一键应用优化</button>
                 </div>
                 
                 <!-- 生成按钮 -->
                 <div class="card">
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-primary" onclick="generateAll()">🚀 一键生成全部</button>
-                        <button class="btn btn-secondary" onclick="generateVideoOnly()">仅视频提示词</button>
-                        <button class="btn btn-secondary" onclick="generateAudioOnly()">仅配音文案</button>
+                        <button class="btn btn-hot" onclick="generateHot()">🔥 生成爆款内容</button>
+                        <button class="btn btn-secondary" onclick="generateVideoOnly()">仅提示词</button>
+                        <button class="btn btn-secondary" onclick="generateAudioOnly()">仅配音</button>
                     </div>
                 </div>
                 
                 <!-- 输出结果 -->
                 <div class="card output-section">
-                    <div class="output-header">
-                        <div class="card-title">📤 生成结果</div>
-                        <div class="output-tabs">
-                            <div class="output-tab active" onclick="switchTab(this, 'storyboard')">分镜预览</div>
-                            <div class="output-tab" onclick="switchTab(this, 'video')">视频提示词</div>
-                            <div class="output-tab" onclick="switchTab(this, 'audio')">配音文案</div>
-                        </div>
+                    <div class="card-title">📤 爆款输出</div>
+                    <div class="output-tabs">
+                        <div class="output-tab active" onclick="switchOutput('storyboard')">分镜预览</div>
+                        <div class="output-tab" onclick="switchOutput('video')">视频提示词</div>
+                        <div class="output-tab" onclick="switchOutput('audio')">配音文案</div>
+                        <div class="output-tab" onclick="switchOutput('analysis')">爆款分析</div>
                     </div>
                     
-                    <!-- 分镜预览 -->
-                    <div id="storyboardOutput" class="storyboard-preview">
-                        <div class="storyboard-card">
-                            <div class="storyboard-header">
-                                <span class="storyboard-shot">远景</span>
-                                <span class="storyboard-duration">5秒</span>
-                            </div>
-                            <div class="storyboard-desc">高楼落地窗前，男人背影剪影</div>
-                            <div class="storyboard-narration">陈默站在落地窗前，望着城市的灯火。</div>
-                        </div>
-                        <div class="storyboard-card">
-                            <div class="storyboard-header">
-                                <span class="storyboard-shot">近景</span>
-                                <span class="storyboard-duration">5秒</span>
-                            </div>
-                            <div class="storyboard-desc">男人侧脸特写，眼神复杂</div>
-                            <div class="storyboard-narration">他没想到，三年前那个被他赶出公司的女人，如今竟然成了他的竞争对手。</div>
-                        </div>
-                        <div class="storyboard-card">
-                            <div class="storyboard-header">
-                                <span class="storyboard-shot">特写</span>
-                                <span class="storyboard-duration">5秒</span>
-                            </div>
-                            <div class="storyboard-desc">男人握紧拳头，表情震惊</div>
-                            <div class="storyboard-narration">更让他没想到的是，她手上握着的，正是能够让他破产的关键证据。</div>
-                        </div>
+                    <div id="outputStoryboard" class="storyboard-grid">
+                        <!-- 动态生成 -->
                     </div>
+                    <div id="outputVideo" class="output-content" style="display:none;"></div>
+                    <div id="outputAudio" class="output-content" style="display:none;"></div>
+                    <div id="outputAnalysis" class="output-content" style="display:none;"></div>
                     
-                    <!-- 视频提示词 -->
-                    <div id="videoOutput" class="output-content" style="display: none;">
-等待生成...
-                    </div>
-                    
-                    <!-- 配音文案 -->
-                    <div id="audioOutput" class="output-content" style="display: none;">
-等待生成...
-                    </div>
-                    
-                    <div style="margin-top: 0.75rem; text-align: right;">
-                        <button class="btn btn-secondary" onclick="copyOutput()">📋 复制结果</button>
+                    <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.75rem; color: #999;">复制后直接粘贴到可灵AI/即梦使用</span>
+                        <button class="btn btn-secondary" onclick="copyOutput()">📋 复制</button>
                     </div>
                 </div>
             </div>
@@ -581,306 +637,453 @@
     </div>
     
     <script>
-        // 状态
-        const state = {
-            hook: 'suspense',
+        // 爆款检测规则
+        const hotRules = {
+            hook3s: {
+                name: '3秒钩子',
+                desc: '开场3秒内必须有强钩子',
+                keywords: ['竟然', '没想到', '原来', '意外发现', '不可思议', '震惊', '竟然是', '竟然成了'],
+                weight: 30
+            },
+            emotionWave: {
+                name: '情绪起伏',
+                desc: '每90秒需有情绪爆点',
+                keywords: ['愤怒', '震惊', '绝望', '希望', '眼泪', '跪求', '崩塌'],
+                weight: 20
+            },
+            infoDensity: {
+                name: '信息密度',
+                desc: '每句话都有信息量，无废话',
+                check: (text) => text.split(/[。！？]/).filter(s => s.trim().length > 5).length / text.length < 0.15,
+                weight: 15
+            },
+            suspenseEnd: {
+                name: '结尾悬念',
+                desc: '结尾留下钩子引发追剧',
+                keywords: ['选择', '或者', '还是', '究竟', '接下来'],
+                weight: 20
+            },
+            vividDesc: {
+                name: '生动描写',
+                desc: '具体场景代入，非抽象描述',
+                keywords: ['落地窗', '灯火', '跪求', '崩塌', '倾家荡产'],
+                weight: 15
+            }
+        };
+        
+        // 爆款模板
+        const hotTemplates = {
+            suspense: {
+                name: '悬念反转',
+                structure: [
+                    { timing: '0-3秒', type: '钩子', example: '他竟然...', rule: '抛出震惊/反转' },
+                    { timing: '3-10秒', type: '铺垫', example: '原来三年前...', rule: '建立期待' },
+                    { timing: '10-20秒', type: '爆点', example: '更让他震惊的是...', rule: '情绪升级' },
+                    { timing: '20-30秒', type: '收尾', example: '现在他只能...', rule: '留悬念' }
+                ]
+            },
+            revenge: {
+                name: '复仇逆袭',
+                structure: [
+                    { timing: '0-3秒', type: '钩子', example: '三年前被赶出公司，如今...', rule: '强对比开篇' },
+                    { timing: '3-15秒', type: '铺垫', example: '当年他如何羞辱...', rule: '激发愤怒' },
+                    { timing: '15-25秒', type: '爆点', example: '现在轮到他跪下了', rule: '爽感释放' }
+                ]
+            },
+            rebirth: {
+                name: '重生开挂',
+                structure: [
+                    { timing: '0-3秒', type: '钩子', example: '重生回到三年前，他决定...', rule: '重生设定+改变' },
+                    { timing: '3-15秒', type: '铺垫', example: '上辈子他因为...', rule: '前因后果' },
+                    { timing: '15-25秒', type: '爆点', example: '这一次他不会再...', rule: '逆袭预告' }
+                ]
+            },
+            sweet: {
+                name: '甜宠沙雕',
+                structure: [
+                    { timing: '0-3秒', type: '钩子', example: '没想到高冷总裁竟然...', rule: '反差萌开篇' },
+                    { timing: '3-15秒', type: '铺垫', example: '他明明很讨厌她...', rule: '口嫌体正直' },
+                    { timing: '15-25秒', type: '爆点', example: '结果却偷偷...', rule: '甜宠爆点' }
+                ]
+            }
+        };
+        
+        // 优化建议库
+        const optimizationTips = {
+            weakHook: {
+                problem: '开场钩子不够强',
+                solution: '建议用"竟然"、"没想到"开头，或直接抛出震惊结果'
+            },
+            noEmotion: {
+                problem: '缺乏情绪爆点',
+                solution: '建议加入"震惊"、"愤怒"、"绝望"等情绪词'
+            },
+            abstractDesc: {
+                problem: '描述过于抽象',
+                solution: '建议加入具体场景：如"落地窗前"而非"某处"'
+            },
+            noSuspenseEnd: {
+                problem: '结尾没有悬念',
+                solution: '建议用"选择"、"究竟"等词留下钩子'
+            }
+        };
+        
+        let state = {
+            template: 'suspense',
             genres: ['逆袭'],
-            styles: ['日系动漫'],
-            platform: 'kling',
-            currentTab: 'storyboard'
+            currentOutput: 'storyboard',
+            score: 0,
+            optimizations: []
         };
         
-        // 钩子关键词
-        const hookKeywords = {
-            suspense: ['没想到', '竟然', '原来', '意外发现', '不可思议', '震惊'],
-            contrast: ['却', '反而', '原来不是', '结果'],
-            result: ['最后', '终于', '成功', '失败'],
-            question: ['为什么', '怎么', '你见过', '有没有']
-        };
-        
-        // 景别映射
-        const shotTypes = {
-            '远景': { en: 'extreme wide shot', duration: 5 },
-            '全景': { en: 'wide shot', duration: 4 },
-            '中景': { en: 'medium shot', duration: 4 },
-            '近景': { en: 'medium close-up', duration: 5 },
-            '特写': { en: 'close-up', duration: 5 }
-        };
-        
-        // 选择钩子模板
-        function selectHook(el, type) {
-            document.querySelectorAll('.hook-template').forEach(e => e.classList.remove('active'));
+        // 选择模板
+        function selectTemplate(el, type) {
+            document.querySelectorAll('.template-card').forEach(e => e.classList.remove('active'));
             el.classList.add('active');
-            state.hook = type;
+            state.template = type;
+            
+            // 更新爆款公式
+            const template = hotTemplates[type];
+            const formulaBox = document.querySelector('.formula-box');
+            formulaBox.querySelector('.formula-title').textContent = '当前模板：' + template.name;
+            
+            let formulaHtml = '';
+            template.structure.forEach(s => {
+                formulaHtml += `<span class="formula-highlight">${s.timing}</span>：${s.rule}<br>`;
+            });
+            formulaBox.querySelector('.formula-text').innerHTML = formulaHtml;
+            
+            analyzeContent();
         }
         
         // 切换题材
-        function toggleGenre(el, genre) {
+        function toggleGenre(el) {
             el.classList.toggle('active');
-            const active = Array.from(document.querySelectorAll('.genre-tag.active')).map(e => e.textContent);
-            state.genres = active;
+            state.genres = Array.from(document.querySelectorAll('.genre-tag.active')).map(e => e.textContent);
         }
         
-        // 切换风格
-        function toggleStyle(el, style) {
-            el.classList.toggle('active');
-            const active = Array.from(document.querySelectorAll('.style-option.active')).map(e => e.textContent);
-            state.styles = active;
-        }
-        
-        // 选择平台
-        function selectPlatform(el, platform) {
-            document.querySelectorAll('.platform-btn').forEach(e => e.classList.remove('active'));
-            el.classList.add('active');
-            state.platform = platform;
-        }
-        
-        // 切换输出标签
-        function switchTab(el, tab) {
-            document.querySelectorAll('.output-tab').forEach(e => e.classList.remove('active'));
-            el.classList.add('active');
-            state.currentTab = tab;
+        // 分析内容
+        function analyzeContent() {
+            const text = document.getElementById('narrationInput').value;
+            if (!text.trim()) return;
             
-            document.getElementById('storyboardOutput').style.display = tab === 'storyboard' ? 'grid' : 'none';
-            document.getElementById('videoOutput').style.display = tab === 'video' ? 'block' : 'none';
-            document.getElementById('audioOutput').style.display = tab === 'audio' ? 'block' : 'none';
-        }
-        
-        // 更新解说文案统计
-        function updateNarrationStats() {
-            const text = document.getElementById('narrationText').value;
+            // 统计
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
             const chars = text.replace(/[\s\n]/g, '').length;
-            const duration = Math.ceil(chars / 4.5); // 语速约4.5字/秒
+            const duration = Math.ceil(chars / 4.5);
             
             document.getElementById('shotCount').textContent = sentences.length;
             document.getElementById('charCount').textContent = chars;
-            document.getElementById('estimatedDuration').textContent = duration + '秒';
+            document.getElementById('duration').textContent = duration + '秒';
             
-            // 检测钩子
-            checkHooks(text);
-        }
-        
-        // 检测钩子
-        function checkHooks(text) {
-            const tipEl = document.getElementById('hookTip');
-            let foundHooks = [];
+            // 爆款检测
+            let totalScore = 0;
+            const checks = [];
+            state.optimizations = [];
             
-            for (const [type, keywords] of Object.entries(hookKeywords)) {
-                keywords.forEach(kw => {
-                    if (text.includes(kw)) {
-                        foundHooks.push(kw);
-                    }
+            for (const [key, rule] of Object.entries(hotRules)) {
+                let passed = false;
+                let detail = '';
+                
+                if (rule.keywords) {
+                    const found = rule.keywords.filter(kw => text.includes(kw));
+                    passed = found.length > 0;
+                    detail = passed ? `检测到：${found.slice(0, 3).join('、')}` : rule.desc;
+                } else if (rule.check) {
+                    passed = rule.check(text);
+                    detail = passed ? '符合要求' : rule.desc;
+                }
+                
+                totalScore += passed ? rule.weight : 0;
+                
+                checks.push({
+                    name: rule.name,
+                    passed: passed,
+                    detail: detail,
+                    weight: rule.weight
                 });
+                
+                if (!passed) {
+                    state.optimizations.push({
+                        type: key,
+                        problem: optimizationTips[key]?.problem || rule.name + '未达标',
+                        solution: optimizationTips[key]?.solution || rule.desc
+                    });
+                }
             }
             
-            if (foundHooks.length > 0) {
-                tipEl.className = 'tip-box success';
-                tipEl.innerHTML = `✅ 检测到钩子："${foundHooks.slice(0, 3).join('"、"')}"，能有效抓住观众注意力`;
+            // 更新评分
+            state.score = totalScore;
+            document.getElementById('scoreValue').textContent = totalScore;
+            document.getElementById('scoreFill').style.width = totalScore + '%';
+            
+            // 更新检测列表
+            let checkHtml = '';
+            checks.forEach(c => {
+                const icon = c.passed ? '✅' : (c.weight >= 20 ? '❌' : '⚠️');
+                const className = c.passed ? 'check-pass' : (c.weight >= 20 ? 'check-fail' : 'check-warn');
+                checkHtml += `
+                    <div class="check-item ${className}">
+                        <span class="check-icon">${icon}</span>
+                        <div class="check-content">
+                            <div class="check-title">${c.name} (${c.weight}分)</div>
+                            <div class="check-detail">${c.detail}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('checkList').innerHTML = checkHtml;
+            
+            // 更新优化建议
+            if (state.optimizations.length > 0) {
+                let optHtml = '';
+                state.optimizations.forEach((opt, i) => {
+                    optHtml += `
+                        <div class="optimize-item">
+                            <div class="optimize-label">${opt.problem}</div>
+                            <div class="optimize-original">${opt.solution}</div>
+                        </div>
+                    `;
+                });
+                document.getElementById('optimizeList').innerHTML = optHtml;
+                document.getElementById('optimizeSection').classList.add('show');
             } else {
-                tipEl.className = 'tip-box';
-                tipEl.innerHTML = `⚠️ 未检测到强钩子，建议添加"没想到"、"竟然"等悬念词`;
+                document.getElementById('optimizeSection').classList.remove('show');
             }
         }
         
-        // 智能分配景别
-        function assignShots(sentences) {
-            const shots = [];
-            const shotSequence = ['远景', '中景', '近景', '特写']; // 解说漫常用序列
+        // 一键优化
+        function applyOptimizations() {
+            const text = document.getElementById('narrationInput').value;
+            let optimized = text;
             
-            sentences.forEach((sentence, index) => {
-                const shotIndex = Math.min(index, shotSequence.length - 1);
-                const shotType = shotSequence[shotIndex];
+            // 自动添加钩子（如果开头没有）
+            const hookWords = ['竟然', '没想到', '原来'];
+            const hasHook = hookWords.some(w => text.slice(0, 20).includes(w));
+            
+            if (!hasHook && state.optimizations.some(o => o.type === 'weakHook')) {
+                optimized = '没想到，' + optimized.charAt(0).toLowerCase() + optimized.slice(1);
+            }
+            
+            // 添加结尾悬念
+            if (state.optimizations.some(o => o.type === 'noSuspenseEnd')) {
+                if (!optimized.includes('选择') && !optimized.includes('究竟')) {
+                    optimized += '\n\n他究竟会如何选择？';
+                }
+            }
+            
+            document.getElementById('narrationInput').value = optimized;
+            analyzeContent();
+        }
+        
+        // 切换输出
+        function switchOutput(type) {
+            document.querySelectorAll('.output-tab').forEach(e => e.classList.remove('active'));
+            event.target.classList.add('active');
+            state.currentOutput = type;
+            
+            document.getElementById('outputStoryboard').style.display = type === 'storyboard' ? 'grid' : 'none';
+            document.getElementById('outputVideo').style.display = type === 'video' ? 'block' : 'none';
+            document.getElementById('outputAudio').style.display = type === 'audio' ? 'block' : 'none';
+            document.getElementById('outputAnalysis').style.display = type === 'analysis' ? 'block' : 'none';
+        }
+        
+        // 生成爆款内容
+        function generateHot() {
+            const text = document.getElementById('narrationInput').value;
+            const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
+            const protagonist = document.getElementById('protagonist').value || '主角';
+            const desc = document.getElementById('protagonistDesc').value;
+            
+            // 生成分镜
+            const shots = assignShotsHot(sentences, protagonist, desc);
+            
+            // 分镜预览
+            let storyboardHtml = '';
+            shots.forEach((shot, i) => {
+                storyboardHtml += `
+                    <div class="shot-card">
+                        <div class="shot-header">
+                            <span class="shot-type">${shot.type}</span>
+                            <span class="shot-time">${shot.duration}秒</span>
+                        </div>
+                        <div class="shot-desc">${shot.desc}</div>
+                        <div class="shot-narration">${shot.narration}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('outputStoryboard').innerHTML = storyboardHtml;
+            
+            // 视频提示词
+            let videoPrompt = '';
+            shots.forEach((shot, i) => {
+                videoPrompt += generateVideoPrompt(shot, i);
+            });
+            document.getElementById('outputVideo').textContent = videoPrompt;
+            
+            // 配音文案
+            let audioScript = '=== 爆款配音文案 ===\n\n';
+            audioScript += `【爆款指数】${state.score}/100\n`;
+            audioScript += `【情绪曲线】${getEmotionCurve(sentences)}\n\n`;
+            shots.forEach((shot, i) => {
+                audioScript += `[${i + 1}] ${shot.narration}\n`;
+                audioScript += `    情绪：${shot.emotion} | 时长：${shot.duration}秒\n\n`;
+            });
+            document.getElementById('outputAudio').textContent = audioScript;
+            
+            // 爆款分析
+            let analysis = '=== 爆款要素分析 ===\n\n';
+            analysis += `【开场钩子】${checkHook(text)}\n`;
+            analysis += `【情绪节奏】${checkEmotion(sentences)}\n`;
+            analysis += `【结尾悬念】${checkEnding(text)}\n`;
+            analysis += `【爆款建议】${getHotAdvice()}\n`;
+            document.getElementById('outputAnalysis').textContent = analysis;
+        }
+        
+        // 爆款景别分配
+        function assignShotsHot(sentences, protagonist, desc) {
+            const shots = [];
+            const shotSequence = ['远景', '中景', '近景', '特写', '特写']; // 解说漫递进
+            
+            sentences.forEach((sentence, i) => {
+                const shotIndex = Math.min(i, shotSequence.length - 1);
+                let shotType = shotSequence[shotIndex];
                 const duration = Math.ceil(sentence.length / 4.5) + 1;
                 
-                // 根据内容调整景别
-                let finalShot = shotType;
-                if (sentence.includes('眼神') || sentence.includes('表情') || sentence.includes('脸')) {
-                    finalShot = '近景';
-                } else if (sentence.includes('背影') || sentence.includes('站') || sentence.includes('走')) {
-                    finalShot = '全景';
-                } else if (sentence.includes('握紧') || sentence.includes('颤抖')) {
-                    finalShot = '特写';
+                // 根据内容调整
+                if (sentence.includes('竟然') || sentence.includes('没想到')) {
+                    shotType = '近景';
+                } else if (sentence.includes('震惊') || sentence.includes('跪求')) {
+                    shotType = '特写';
+                } else if (sentence.includes('落地窗') || sentence.includes('城市')) {
+                    shotType = '远景';
                 }
                 
                 shots.push({
-                    type: finalShot,
+                    type: shotType,
                     duration: duration,
                     narration: sentence,
-                    desc: generateSceneDesc(sentence, finalShot)
+                    desc: generateHotDesc(sentence, shotType, protagonist, desc),
+                    emotion: getEmotion(sentence)
                 });
             });
             
             return shots;
         }
         
-        // 生成场景描述
-        function generateSceneDesc(sentence, shotType) {
-            const protagonist = document.getElementById('protagonist').value || '主角';
-            const desc = document.getElementById('protagonistDesc').value || '';
-            
-            // 简单的场景描述生成
+        // 生成爆款场景描述
+        function generateHotDesc(sentence, shotType, protagonist, desc) {
             if (shotType === '远景') {
-                return `${protagonist}身影与环境全景`;
-            } else if (shotType === '全景') {
-                return `${protagonist}全身动作，${desc}气质`;
+                return `${protagonist}身影与环境全景，${desc}，光影氛围感`;
+            } else if (shotType === '中景') {
+                return `${protagonist}中景，${desc}，动作神态`;
             } else if (shotType === '近景') {
-                return `${protagonist}表情特写，情绪变化`;
+                return `${protagonist}面部近景，情绪变化清晰，眼神复杂`;
             } else {
-                return `${protagonist}细节特写，情绪爆发`;
+                return `${protagonist}特写，情绪爆发点，细节强化`;
             }
+        }
+        
+        // 获取情绪
+        function getEmotion(text) {
+            if (text.includes('没想到') || text.includes('竟然') || text.includes('震惊')) return '惊讶';
+            if (text.includes('愤怒') || text.includes('跪求')) return '愤怒/屈辱';
+            if (text.includes('绝望') || text.includes('崩塌')) return '绝望';
+            if (text.includes('选择') || text.includes('或者')) return '纠结';
+            return '叙事';
+        }
+        
+        // 情绪曲线
+        function getEmotionCurve(sentences) {
+            const emotions = sentences.map(s => getEmotion(s));
+            return emotions.join(' → ');
+        }
+        
+        // 检测钩子
+        function checkHook(text) {
+            const hooks = ['竟然', '没想到', '原来', '震惊'];
+            const found = hooks.filter(h => text.slice(0, 50).includes(h));
+            return found.length > 0 ? `✅ "${found[0]}" 3秒内抓住注意力` : '⚠️ 开场钩子较弱，建议加强';
+        }
+        
+        // 检测情绪
+        function checkEmotion(sentences) {
+            const emotions = sentences.map(s => getEmotion(s));
+            const hasVariety = new Set(emotions).size > 2;
+            return hasVariety ? '✅ 情绪有起伏' : '⚠️ 情绪较平淡';
+        }
+        
+        // 检测结尾
+        function checkEnding(text) {
+            const hooks = ['选择', '究竟', '还是', '接下来'];
+            const found = hooks.filter(h => text.slice(-30).includes(h));
+            return found.length > 0 ? '✅ 结尾留有悬念' : '⚠️ 结尾悬念不足';
+        }
+        
+        // 爆款建议
+        function getHotAdvice() {
+            if (state.score >= 80) return '已达标，可直接使用';
+            if (state.score >= 60) return '建议优化开场钩子';
+            return '建议一键应用优化后再生成';
         }
         
         // 生成视频提示词
         function generateVideoPrompt(shot, index) {
-            const isEnglish = ['runway', 'vidu'].includes(state.platform);
-            const style = state.styles.join('、');
-            const protagonist = document.getElementById('protagonist').value || '主角';
-            const desc = document.getElementById('protagonistDesc').value;
-            const shotInfo = shotTypes[shot.type];
-            
-            if (isEnglish) {
-                return `--- Shot ${index + 1} ---
-[Camera] ${shotInfo.en}
-[Duration] ${shot.duration}s
-[Style] ${translateStyle(style)}
-[Scene] ${translateDesc(shot.desc)}
-[Narration] "${translateDesc(shot.narration)}"
-
-Prompt: ${shotInfo.en}, ${translateDesc(shot.desc)}, ${translateStyle(style)} style, cinematic lighting, smooth camera movement
-
-`;
-            } else {
-                return `--- 镜头 ${index + 1} ---
-【景别】${shot.type}（${shotInfo.en}）
+            return `--- 镜头 ${index + 1} ---
+【景别】${shot.type}
 【时长】${shot.duration}秒
-【风格】${style}
 【场景】${shot.desc}
-【解说】"${shot.narration}"
+【情绪】${shot.emotion}
 
-提示词：${shot.type}，${shot.desc}，${style}风格，电影级光影，流畅运镜，高质量画面
+提示词：${shot.type}，${shot.desc}，日系动漫风格，电影级光影，流畅运镜，高质量画面
 
 `;
-            }
         }
         
-        // 简单翻译
-        function translateStyle(style) {
-            const map = {
-                '日系动漫': 'Japanese anime',
-                '韩漫': 'Korean webtoon',
-                '写实': 'realistic',
-                '古风': 'traditional Chinese',
-                '赛博朋克': 'cyberpunk'
-            };
-            return map[style] || style;
-        }
-        
-        function translateDesc(text) {
-            // 简单替换
-            return text
-                .replace(/陈默/g, 'Chen Mo')
-                .replace(/站在/g, 'standing at')
-                .replace(/落地窗/g, 'floor-to-ceiling window')
-                .replace(/背影/g, 'silhouette')
-                .replace(/眼神/g, 'eyes')
-                .replace(/表情/g, 'expression');
-        }
-        
-        // 生成配音文案
-        function generateAudioScript(shots) {
-            let script = `=== 解说漫配音文案 ===\n\n`;
-            script += `【总时长】约 ${shots.reduce((sum, s) => sum + s.duration, 0)} 秒\n`;
-            script += `【语速建议】中等偏快（4-5字/秒）\n`;
-            script += `【情绪基调】${state.genres[0] || '叙事'}风格\n\n`;
-            
-            shots.forEach((shot, index) => {
-                script += `[${index + 1}] ${shot.narration}\n`;
-                script += `    时长：${shot.duration}秒 | 情绪：${getEmotion(shot.narration)}\n\n`;
-            });
-            
-            return script;
-        }
-        
-        // 判断情绪
-        function getEmotion(text) {
-            if (text.includes('没想到') || text.includes('竟然')) return '惊讶';
-            if (text.includes('愤怒') || text.includes('握紧')) return '愤怒';
-            if (text.includes('悲伤') || text.includes('眼泪')) return '悲伤';
-            if (text.includes('笑') || text.includes('开心')) return '愉悦';
-            return '平静';
-        }
-        
-        // 一键生成全部
-        function generateAll() {
-            const text = document.getElementById('narrationText').value;
-            const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
-            const shots = assignShots(sentences);
-            
-            // 生成分镜预览
-            let storyboardHtml = '';
-            shots.forEach((shot, index) => {
-                storyboardHtml += `
-                    <div class="storyboard-card">
-                        <div class="storyboard-header">
-                            <span class="storyboard-shot">${shot.type}</span>
-                            <span class="storyboard-duration">${shot.duration}秒</span>
-                        </div>
-                        <div class="storyboard-desc">${shot.desc}</div>
-                        <div class="storyboard-narration">${shot.narration}</div>
-                    </div>
-                `;
-            });
-            document.getElementById('storyboardOutput').innerHTML = storyboardHtml;
-            
-            // 生成视频提示词
-            let videoPrompt = '';
-            shots.forEach((shot, index) => {
-                videoPrompt += generateVideoPrompt(shot, index);
-            });
-            document.getElementById('videoOutput').textContent = videoPrompt;
-            
-            // 生成配音文案
-            const audioScript = generateAudioScript(shots);
-            document.getElementById('audioOutput').textContent = audioScript;
-        }
-        
-        // 仅生成视频提示词
+        // 仅生成视频
         function generateVideoOnly() {
-            const text = document.getElementById('narrationText').value;
+            const text = document.getElementById('narrationInput').value;
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
-            const shots = assignShots(sentences);
+            const protagonist = document.getElementById('protagonist').value;
+            const desc = document.getElementById('protagonistDesc').value;
+            const shots = assignShotsHot(sentences, protagonist, desc);
             
             let videoPrompt = '';
-            shots.forEach((shot, index) => {
-                videoPrompt += generateVideoPrompt(shot, index);
+            shots.forEach((shot, i) => {
+                videoPrompt += generateVideoPrompt(shot, i);
             });
-            document.getElementById('videoOutput').textContent = videoPrompt;
-            
-            switchTab(document.querySelector('.output-tab:nth-child(2)'), 'video');
+            document.getElementById('outputVideo').textContent = videoPrompt;
+            switchOutput('video');
         }
         
-        // 仅生成配音文案
+        // 仅生成配音
         function generateAudioOnly() {
-            const text = document.getElementById('narrationText').value;
+            const text = document.getElementById('narrationInput').value;
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
-            const shots = assignShots(sentences);
+            const protagonist = document.getElementById('protagonist').value;
+            const desc = document.getElementById('protagonistDesc').value;
+            const shots = assignShotsHot(sentences, protagonist, desc);
             
-            const audioScript = generateAudioScript(shots);
-            document.getElementById('audioOutput').textContent = audioScript;
-            
-            switchTab(document.querySelector('.output-tab:nth-child(3)'), 'audio');
+            let audioScript = '=== 配音文案 ===\n\n';
+            shots.forEach((shot, i) => {
+                audioScript += `[${i + 1}] ${shot.narration}\n`;
+                audioScript += `    情绪：${shot.emotion} | 时长：${shot.duration}秒\n\n`;
+            });
+            document.getElementById('outputAudio').textContent = audioScript;
+            switchOutput('audio');
         }
         
         // 复制输出
         function copyOutput() {
             let content = '';
-            if (state.currentTab === 'video') {
-                content = document.getElementById('videoOutput').textContent;
-            } else if (state.currentTab === 'audio') {
-                content = document.getElementById('audioOutput').textContent;
+            if (state.currentOutput === 'storyboard') {
+                content = document.getElementById('outputStoryboard').innerText;
+            } else if (state.currentOutput === 'video') {
+                content = document.getElementById('outputVideo').textContent;
+            } else if (state.currentOutput === 'audio') {
+                content = document.getElementById('outputAudio').textContent;
             } else {
-                content = document.getElementById('storyboardOutput').innerText;
+                content = document.getElementById('outputAnalysis').textContent;
             }
             
             navigator.clipboard.writeText(content).then(() => {
@@ -889,7 +1092,8 @@ Prompt: ${shotInfo.en}, ${translateDesc(shot.desc)}, ${translateStyle(style)} st
         }
         
         // 初始化
-        updateNarrationStats();
+        analyzeContent();
+        generateHot();
     </script>
 </body>
 </html>
