@@ -609,7 +609,7 @@ function genLocationPrompts(loc: string) {
   }
 
   const key = Object.keys(locMap).find(k => loc.includes(k))
-  return { baseline: locMap[key] || `${loc}, interior or exterior scene, photorealistic, 8k` }
+  return { baseline: key ? locMap[key] : `${loc}, interior or exterior scene, photorealistic, 8k` }
 }
 
 function extractProps(content: string) {
