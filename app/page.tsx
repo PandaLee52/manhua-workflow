@@ -333,7 +333,7 @@ export default function Home() {
   return (
     <div className="container">
       <header className="header">
-        <h1>AI漫剧工作流平台 v7.0</h1>
+        <h1>AI漫剧工作流平台 v8.0 - Build: 202604140027 - 7.0</h1>
         <div className="header-right">
           <span className="user-info">👤 {user.username}</span>
           <button className="btn btn-secondary" onClick={handleLogout}>退出</button>
