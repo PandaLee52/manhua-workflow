@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import mammoth from 'mammoth'
 import * as pdfjsLib from 'pdfjs-dist'
 
@@ -11,6 +11,8 @@ interface User {
 interface DialogueLine {
   speaker: string
   text: string
+  emotion?: string
+  action?: string
 }
 
 interface VideoSegment {
@@ -41,6 +43,14 @@ interface ParseResult {
     characters: string[]
     dialogue: DialogueLine[]
     videoSegments: VideoSegment[]
+    // 标准化格式
+    standardFormat?: {
+      sceneHeader: string  // 1-1 日 外 校门口
+      actionLines: string[]  // △动作描述
+      osLines: string[]  // OS内心独白
+      voLines: string[]  // VO画外音
+      dialogueFormatted: Array<{speaker: string; emotion?: string; text: string; action?: string}>
+    }
   }>
   assets: any
   version: string
@@ -53,6 +63,20 @@ interface SavedProject {
   updatedAt: string
 }
 
+// 角色资产库接口
+interface CharacterAsset {
+  id: string
+  name: string
+  description: string
+  voice_style: string
+  appearance_tags: string[]
+  front_view_url: string
+  side_view_url: string
+  three_quarter_view_url: string
+  feature_code: string
+  created_at: string
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string>('')
@@ -63,6 +87,17 @@ export default function Home() {
   const [activeMainTab, setActiveMainTab] = useState('script')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  
+  // 角色资产库状态
+  const [characterAssets, setCharacterAssets] = useState<CharacterAsset[]>([])
+  const [showCharacterModal, setShowCharacterModal] = useState(false)
+  const [editingCharacter, setEditingCharacter] = useState<CharacterAsset | null>(null)
+  const [newCharacter, setNewCharacter] = useState({
+    name: '',
+    description: '',
+    voice_style: '青年女声',
+    appearance_tags: ''
+  })
 
   // 检查登录状态
   useEffect(() => {
@@ -78,6 +113,7 @@ export default function Home() {
   useEffect(() => {
     if (user && token) {
       loadProjects()
+      loadCharacterAssets()
     }
   }, [user, token])
 
@@ -92,6 +128,21 @@ export default function Home() {
       }
     } catch (err) {
       console.error('加载项目失败:', err)
+    }
+  }
+  
+  // 加载角色资产库
+  const loadCharacterAssets = async () => {
+    try {
+      const res = await fetch('/api/characters', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCharacterAssets(data.characters || [])
+      }
+    } catch (err) {
+      console.error('加载角色资产失败:', err)
     }
   }
 
@@ -180,6 +231,69 @@ export default function Home() {
       console.error('加载项目失败:', err)
     }
   }
+  
+  // 创建/更新角色资产
+  const handleSaveCharacter = async () => {
+    try {
+      const method = editingCharacter ? 'PUT' : 'POST'
+      const url = editingCharacter ? `/api/characters/${editingCharacter.id}` : '/api/characters'
+      
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...newCharacter,
+          appearance_tags: newCharacter.appearance_tags.split(',').map(t => t.trim()).filter(Boolean),
+          feature_code: generateFeatureCode(newCharacter.name, newCharacter.appearance_tags)
+        })
+      })
+      
+      if (res.ok) {
+        setMessage(editingCharacter ? '角色更新成功' : '角色创建成功')
+        setShowCharacterModal(false)
+        setEditingCharacter(null)
+        setNewCharacter({ name: '', description: '', voice_style: '青年女声', appearance_tags: '' })
+        loadCharacterAssets()
+      } else {
+        setMessage('保存失败')
+      }
+    } catch (err) {
+      console.error('保存角色失败:', err)
+      setMessage('保存失败')
+    }
+  }
+  
+  // 删除角色
+  const handleDeleteCharacter = async (id: string) => {
+    if (!confirm('确定要删除这个角色吗？')) return
+    try {
+      const res = await fetch(`/api/characters/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setMessage('角色已删除')
+        loadCharacterAssets()
+      }
+    } catch (err) {
+      console.error('删除角色失败:', err)
+    }
+  }
+  
+  // 打开编辑角色
+  const handleEditCharacter = (char: CharacterAsset) => {
+    setEditingCharacter(char)
+    setNewCharacter({
+      name: char.name,
+      description: char.description,
+      voice_style: char.voice_style,
+      appearance_tags: char.appearance_tags.join(', ')
+    })
+    setShowCharacterModal(true)
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -187,6 +301,55 @@ export default function Home() {
     setUser(null)
     setToken('')
     setParseResult(null)
+  }
+  
+  // 导出标准化格式剧本
+  const exportStandardFormat = () => {
+    if (!parseResult) return
+    let output = `《${parseResult.title}》标准化剧本格式\n`
+    output += `='${'='.repeat(40)}\n\n`
+    
+    parseResult.scenes.forEach(scene => {
+      const std = scene.standardFormat
+      if (!std) return
+      
+      output += `【${std.sceneHeader}】\n`
+      
+      // 动作描述
+      std.actionLines.forEach(a => {
+        output += `△${a}\n`
+      })
+      
+      // 内心独白
+      std.osLines.forEach(os => {
+        output += `OS ${os}\n`
+      })
+      
+      // 画外音
+      std.voLines.forEach(vo => {
+        output += `VO ${vo}\n`
+      })
+      
+      // 台词
+      std.dialogueFormatted.forEach(d => {
+        if (d.emotion || d.action) {
+          output += `${d.speaker}（${d.emotion || ''}${d.action ? ' ' + d.action : ''}）：${d.text}\n`
+        } else {
+          output += `${d.speaker}：${d.text}\n`
+        }
+      })
+      
+      output += '\n'
+    })
+    
+    // 下载文件
+    const blob = new Blob([output], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${parseResult.title}_标准化剧本.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (!user) {
@@ -196,19 +359,31 @@ export default function Home() {
   return (
     <div className="container">
       <header className="header">
-        <h1>AI漫剧工作流平台 v4.0</h1>
+        <h1>AI漫剧工作流平台 v7.0</h1>
         <div className="header-right">
           <span className="user-info">👤 {user.username}</span>
           <button className="btn btn-secondary" onClick={handleLogout}>退出</button>
         </div>
       </header>
 
-      {message && <div style={{padding:'12px',background:'var(--bg-tertiary)',borderRadius:'6px',marginBottom:'20px'}}>{message}</div>}
+      {message && (
+        <div style={{
+          padding: '12px',
+          background: message.includes('失败') || message.includes('错误') ? '#fee2e2' : 'var(--bg-tertiary)',
+          borderRadius: '6px',
+          marginBottom: '20px',
+          color: message.includes('失败') || message.includes('错误') ? '#dc2626' : 'inherit'
+        }}>
+          {message}
+          <button onClick={() => setMessage('')} style={{ marginLeft: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
 
       <div className="tab-group" style={{marginBottom:'20px'}}>
         <button className={`tab ${activeMainTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveMainTab('projects')}>我的项目</button>
         <button className={`tab ${activeMainTab === 'script' ? 'active' : ''}`} onClick={() => setActiveMainTab('script')}>剧本解析</button>
         <button className={`tab ${activeMainTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveMainTab('assets')}>核心资产</button>
+        <button className={`tab ${activeMainTab === 'characters' ? 'active' : ''}`} onClick={() => setActiveMainTab('characters')}>角色资产库</button>
       </div>
 
       {activeMainTab === 'projects' && (
@@ -249,6 +424,7 @@ export default function Home() {
                 <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>{parseResult.format === 'firstPerson' ? '第一人称' : '标准'}格式</p>
               </div>
               <div className="action-bar">
+                <button className="btn btn-primary" onClick={exportStandardFormat}>导出标准化剧本</button>
                 <button className="btn btn-secondary" onClick={() => { setParseResult(null); setActiveScene(null) }}>上传新剧本</button>
               </div>
             </div>
@@ -277,6 +453,7 @@ export default function Home() {
                       <button className={`tab ${activeTab === 'scene' ? 'active' : ''}`} onClick={() => setActiveTab('scene')}>分镜</button>
                       <button className={`tab ${activeTab === 'dialogue' ? 'active' : ''}`} onClick={() => setActiveTab('dialogue')}>台词</button>
                       <button className={`tab ${activeTab === 'prompt' ? 'active' : ''}`} onClick={() => setActiveTab('prompt')}>提示词</button>
+                      <button className={`tab ${activeTab === 'standard' ? 'active' : ''}`} onClick={() => setActiveTab('standard')}>标准格式</button>
                     </div>
                     <div>
                       {activeTab === 'scene' && (
@@ -319,6 +496,30 @@ export default function Home() {
                           )}
                         </div>
                       )}
+                      {activeTab === 'standard' && activeScene.standardFormat && (
+                        <div style={{padding:'16px',background:'var(--bg-tertiary)',borderRadius:'8px',fontFamily:'monospace',fontSize:'13px',whiteSpace:'pre-wrap',lineHeight:'1.8'}}>
+                          <div style={{marginBottom:'12px',color:'var(--accent)',fontWeight:'bold'}}>
+                            {activeScene.standardFormat.sceneHeader}
+                          </div>
+                          {activeScene.standardFormat.actionLines.map((a, i) => (
+                            <div key={`a-${i}`} style={{color:'#f59e0b'}}>△{a}</div>
+                          ))}
+                          {activeScene.standardFormat.osLines.map((os, i) => (
+                            <div key={`os-${i}`} style={{color:'#8b5cf6'}}>OS {os}</div>
+                          ))}
+                          {activeScene.standardFormat.voLines.map((vo, i) => (
+                            <div key={`vo-${i}`} style={{color:'#06b6d4'}}>VO {vo}</div>
+                          ))}
+                          {activeScene.standardFormat.dialogueFormatted.map((d, i) => (
+                            <div key={`d-${i}`} style={{color:'#22c55e'}}>
+                              {d.speaker}{d.emotion ? `（${d.emotion}）` : ''}：{d.text}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {activeTab === 'standard' && !activeScene.standardFormat && (
+                        <div style={{color:'var(--text-secondary)',padding:'16px'}}>暂无标准化格式数据</div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -343,7 +544,7 @@ export default function Home() {
           </>
         ) : (
           <div className="upload-area" onClick={() => document.getElementById('fileInput')?.click()}>
-            <div style={{fontSize:'48px',marginBottom:'16px',opacity:0.6}}>📄</div>
+            <div style={{fontSize:'48px',marginBottom:'16px',opacity:0.6'}}>📄</div>
             <p style={{fontSize:'18px',marginBottom:'8px'}}>点击上传剧本文件</p>
             <p style={{fontSize:'14px',color:'var(--text-secondary)',marginBottom:'16px'}}>支持 .txt / .md / .docx / .pdf 格式</p>
             <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>数据将自动保存到您的账户</p>
@@ -396,6 +597,170 @@ export default function Home() {
                   <div className="asset-prompt">{l.prompts.baseline}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* P0-2: 角色资产库 Tab */}
+      {activeMainTab === 'characters' && (
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
+            <div>
+              <h2 style={{fontSize:'20px',marginBottom:'4px'}}>角色资产库</h2>
+              <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>管理角色三视图和特征码，用于AI生图一致性</p>
+            </div>
+            <button className="btn btn-primary" onClick={() => {
+              setEditingCharacter(null)
+              setNewCharacter({ name: '', description: '', voice_style: '青年女声', appearance_tags: '' })
+              setShowCharacterModal(true)
+            }}>
+              + 新建角色
+            </button>
+          </div>
+          
+          {characterAssets.length === 0 ? (
+            <div className="card" style={{textAlign:'center',padding:'60px'}}>
+              <div style={{fontSize:'48px',marginBottom:'16px',opacity:0.5'}}>🎭</div>
+              <p style={{color:'var(--text-secondary)',marginBottom:'16px'}}>暂无角色资产</p>
+              <p style={{fontSize:'13px',color:'var(--text-secondary)'}}>创建角色后可上传三视图和绑定音色</p>
+            </div>
+          ) : (
+            <div className="character-grid">
+              {characterAssets.map((char) => (
+                <div key={char.id} className="character-card">
+                  <div className="character-card-header">
+                    <div className="character-name">{char.name}</div>
+                    <div className="character-actions">
+                      <button className="icon-btn" onClick={() => handleEditCharacter(char)} title="编辑">✏️</button>
+                      <button className="icon-btn" onClick={() => handleDeleteCharacter(char.id)} title="删除">🗑️</button>
+                    </div>
+                  </div>
+                  
+                  <div className="character-views">
+                    <div className="view-item">
+                      <div className="view-label">正脸</div>
+                      {char.front_view_url ? (
+                        <img src={char.front_view_url} alt="正脸" className="view-image" />
+                      ) : (
+                        <div className="view-placeholder">未上传</div>
+                      )}
+                    </div>
+                    <div className="view-item">
+                      <div className="view-label">侧脸</div>
+                      {char.side_view_url ? (
+                        <img src={char.side_view_url} alt="侧脸" className="view-image" />
+                      ) : (
+                        <div className="view-placeholder">未上传</div>
+                      )}
+                    </div>
+                    <div className="view-item">
+                      <div className="view-label">3/4侧脸</div>
+                      {char.three_quarter_view_url ? (
+                        <img src={char.three_quarter_view_url} alt="3/4侧脸" className="view-image" />
+                      ) : (
+                        <div className="view-placeholder">未上传</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="character-info">
+                    <div className="info-row">
+                      <span className="info-label">音色：</span>
+                      <span className="info-value">{char.voice_style}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-label">标签：</span>
+                      <span className="info-value">{char.appearance_tags?.join(', ') || '暂无'}</span>
+                    </div>
+                  </div>
+                  
+                  {char.feature_code && (
+                    <div className="feature-code-section">
+                      <div className="feature-code-header">
+                        <span>特征码</span>
+                        <button className="copy-btn" onClick={() => navigator.clipboard.writeText(char.feature_code)}>复制</button>
+                      </div>
+                      <div className="feature-code">{char.feature_code}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 角色编辑弹窗 */}
+      {showCharacterModal && (
+        <div className="modal-overlay" onClick={() => setShowCharacterModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingCharacter ? '编辑角色' : '新建角色'}</h3>
+              <button className="modal-close" onClick={() => setShowCharacterModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">角色名称</label>
+                <input 
+                  className="form-input" 
+                  type="text" 
+                  value={newCharacter.name}
+                  onChange={(e) => setNewCharacter({...newCharacter, name: e.target.value})}
+                  placeholder="如：林若雪"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">角色描述</label>
+                <textarea 
+                  className="form-textarea"
+                  value={newCharacter.description}
+                  onChange={(e) => setNewCharacter({...newCharacter, description: e.target.value})}
+                  placeholder="描述角色的外貌、性格等特点"
+                  rows={3}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">音色风格</label>
+                <select 
+                  className="form-select"
+                  value={newCharacter.voice_style}
+                  onChange={(e) => setNewCharacter({...newCharacter, voice_style: e.target.value})}
+                >
+                  <option value="少女音">少女音</option>
+                  <option value="青年女声">青年女声</option>
+                  <option value="中年女声">中年女声</option>
+                  <option value="少年音">少年音</option>
+                  <option value="青年男声">青年男声</option>
+                  <option value="中年男声">中年男声</option>
+                  <option value="老年女声">老年女声</option>
+                  <option value="老年男声">老年男声</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">外貌标签（逗号分隔）</label>
+                <input 
+                  className="form-input" 
+                  type="text" 
+                  value={newCharacter.appearance_tags}
+                  onChange={(e) => setNewCharacter({...newCharacter, appearance_tags: e.target.value})}
+                  placeholder="如：长发，大眼睛，瓜子脸"
+                />
+              </div>
+              <div style={{background:'var(--bg-tertiary)',padding:'12px',borderRadius:'6px',marginTop:'12px'}}>
+                <div style={{fontSize:'12px',color:'var(--text-secondary)',marginBottom:'8px'}}>
+                  📝 特征码生成说明
+                </div>
+                <div style={{fontSize:'12px',fontFamily:'monospace'}}>
+                  系统将根据角色名称和标签自动生成特征码，用于AI生图时保持角色一致性。
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCharacterModal(false)}>取消</button>
+              <button className="btn btn-primary" onClick={handleSaveCharacter} disabled={!newCharacter.name}>
+                保存角色
+              </button>
             </div>
           </div>
         </div>
@@ -480,6 +845,7 @@ function LoginPage({ onLogin }: { onLogin: (user: User, token: string) => void }
   )
 }
 
+// P0-1: 剧本格式标准化输出
 function parseScript(content: string): ParseResult {
   const lines = content.split('\n').filter(l => l.trim())
   let title = '未命名剧本'
@@ -514,7 +880,7 @@ function parseScript(content: string): ParseResult {
     })),
     scenes,
     assets,
-    version: '5.0'
+    version: '7.0'
   }
 }
 
@@ -591,13 +957,16 @@ function generateVoiceStyle(name: string, desc: string, gender: string, age: num
   return styles.join('，') || (gender === 'female' ? '温柔女声' : '沉稳男声')
 }
 
-// 解析场景 V2
+// P0-1: 解析场景 V2 - 添加标准化格式输出
 function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
   const scenes: any[] = []
   let currentEpisode = 1
   let sceneId = 0
   let currentScene: any = null
   let descriptionBuffer: string[] = []
+  let actionBuffer: string[] = []
+  let osBuffer: string[] = []
+  let voBuffer: string[] = []
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
@@ -617,27 +986,69 @@ function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
       if (currentScene) {
         currentScene.description = descriptionBuffer.join(' ')
         currentScene.videoSegments = generateVideoSegments(currentScene, profiles)
+        // P0-1: 生成标准化格式
+        currentScene.standardFormat = generateStandardFormat(
+          currentScene, actionBuffer, osBuffer, voBuffer
+        )
         scenes.push(currentScene)
         descriptionBuffer = []
+        actionBuffer = []
+        osBuffer = []
+        voBuffer = []
       }
       
       sceneId++
+      const locationStr = sceneMatch[1].trim()
+      // 解析场景格式: 1-1 日 外 校门口
+      const sceneHeader = parseSceneHeader(sceneId, locationStr)
+      
       currentScene = {
         id: sceneId,
         episode: currentEpisode,
         sceneNumber: String(sceneId),
         shotType: '中景',
         type: '对话',
-        location: sceneMatch[1].trim(),
+        location: locationStr,
+        sceneHeader,
         description: '',
         characters: [],
         dialogue: [],
-        videoSegments: []
+        videoSegments: [],
+        standardFormat: null
       }
       continue
     }
     
     if (!currentScene) continue
+    
+    // P0-1: 匹配动作描述 △动作 或 【动作】
+    const actionMatch = line.match(/△(.+)/) || line.match(/【(.+?)】/)
+    if (actionMatch && !line.includes('全景') && !line.includes('远景') && !line.includes('中景') && !line.includes('近景') && !line.includes('特写')) {
+      actionBuffer.push(actionMatch[1].trim())
+      descriptionBuffer.push(actionMatch[1].trim())
+      continue
+    }
+    
+    // P0-1: 匹配内心独白 OS xxx
+    const osMatch = line.match(/OS[：:\s]*(.+)/i)
+    if (osMatch) {
+      osBuffer.push(osMatch[1].trim())
+      continue
+    }
+    
+    // P0-1: 匹配画外音 VO xxx
+    const voMatch = line.match(/VO[：:\s]*(.+)/i)
+    if (voMatch) {
+      voBuffer.push(voMatch[1].trim())
+      continue
+    }
+    
+    // P0-1: 匹配旁白
+    const narratorMatch = line.match(/旁白[：:]\s*(.+)/)
+    if (narratorMatch) {
+      voBuffer.push(narratorMatch[1].trim())
+      continue
+    }
     
     // 匹配台词格式：**角色名**：台词
     const dialogueMatch = line.match(/\*\*(.+?)\*\*[：:]\s*(.+)/)
@@ -650,13 +1061,27 @@ function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
         if (!currentScene.characters.includes(speaker)) {
           currentScene.characters.push(speaker)
         }
-        currentScene.dialogue.push({ speaker, text })
+        // P0-1: 解析情绪和动作
+        const emotionActionMatch = text.match(/（(.+?)）/)
+        let emotion = ''
+        let actionText = ''
+        if (emotionActionMatch) {
+          const parts = emotionActionMatch[1].split(/[，,]/).map(p => p.trim())
+          emotion = parts[0] || ''
+          actionText = parts.slice(1).join('，')
+        }
+        currentScene.dialogue.push({ 
+          speaker, 
+          text: text.replace(/（.+?）/, '').trim(),
+          emotion,
+          action: actionText
+        })
       }
       continue
     }
     
     // 匹配简单格式：角色名：台词（无**标记）
-    const simpleDialogueMatch = line.match(/^([^：:*]+)[：:]\s*(.+)/)
+    const simpleDialogueMatch = line.match(/^([^：:*\]\[（）\(\)]+)[：:]\s*(.+)/)
     if (simpleDialogueMatch && !line.includes('场景') && !line.includes('主要')) {
       const speaker = simpleDialogueMatch[1].trim()
       const text = simpleDialogueMatch[2].trim()
@@ -666,7 +1091,21 @@ function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
         if (!currentScene.characters.includes(speaker)) {
           currentScene.characters.push(speaker)
         }
-        currentScene.dialogue.push({ speaker, text })
+        // P0-1: 解析情绪和动作
+        const emotionActionMatch = text.match(/（(.+?)）/)
+        let emotion = ''
+        let actionText = ''
+        if (emotionActionMatch) {
+          const parts = emotionActionMatch[1].split(/[，,]/).map(p => p.trim())
+          emotion = parts[0] || ''
+          actionText = parts.slice(1).join('，')
+        }
+        currentScene.dialogue.push({ 
+          speaker, 
+          text: text.replace(/（.+?）/, '').trim(),
+          emotion,
+          action: actionText
+        })
         continue
       }
     }
@@ -678,9 +1117,10 @@ function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
       continue
     }
     
-    // 匹配情绪/动作标记
+    // 匹配情绪/动作标记（通用）
     const emotionMatch = line.match(/（(.+?)）/)
     if (emotionMatch) {
+      actionBuffer.push(emotionMatch[1])
       descriptionBuffer.push(emotionMatch[1])
       continue
     }
@@ -695,10 +1135,59 @@ function parseScenesV2(lines: string[], profiles: Record<string, ProfileV2>) {
   if (currentScene) {
     currentScene.description = descriptionBuffer.join(' ')
     currentScene.videoSegments = generateVideoSegments(currentScene, profiles)
+    // P0-1: 生成标准化格式
+    currentScene.standardFormat = generateStandardFormat(
+      currentScene, actionBuffer, osBuffer, voBuffer
+    )
     scenes.push(currentScene)
   }
   
   return scenes
+}
+
+// P0-1: 解析场景头部格式
+function parseSceneHeader(sceneId: number, locationStr: string): string {
+  // 尝试匹配标准格式: 集数-场景号 时段 内外 地点
+  // 例如: 1-1 日 外 校门口
+  const fullMatch = locationStr.match(/^(\d+)-(\d+)\s+(日|夜|晨|午|昏|凌晨)\s+(内|外)\s+(.+)/)
+  if (fullMatch) {
+    return locationStr // 已经是标准格式
+  }
+  
+  // 尝试匹配简单格式: 内外 地点
+  const simpleMatch = locationStr.match(/^(内|外)[，,\s]+(.+)/)
+  if (simpleMatch) {
+    const io = simpleMatch[1] === '内' ? '内' : '外'
+    const location = simpleMatch[2]
+    // 默认时段为日
+    return `${sceneId} ${sceneId} 日 ${io} ${location}`
+  }
+  
+  // 无法解析，返回基本格式
+  return `${sceneId}-${sceneId} 日 外 ${locationStr}`
+}
+
+// P0-1: 生成标准化格式
+function generateStandardFormat(
+  scene: any,
+  actionBuffer: string[],
+  osBuffer: string[],
+  voBuffer: string[]
+) {
+  const dialogueFormatted = scene.dialogue.map((d: DialogueLine) => ({
+    speaker: d.speaker,
+    emotion: d.emotion,
+    action: d.action,
+    text: d.text
+  }))
+  
+  return {
+    sceneHeader: scene.sceneHeader || `${scene.id} ${scene.id} 日 外 ${scene.location}`,
+    actionLines: actionBuffer,
+    osLines: osBuffer,
+    voLines: voBuffer,
+    dialogueFormatted
+  }
 }
 
 // 生成视频分段（每段15秒）
@@ -932,4 +1421,30 @@ function extractPropsV2(content: string) {
   ]
   
   return propsKeywords.filter(p => p.pattern.test(content)).map(p => ({ name: p.name, prompt: p.prompt }))
+}
+
+// P0-2: 生成角色特征码
+function generateFeatureCode(name: string, tags: string): string {
+  const normalizedName = name.trim().toLowerCase()
+  const normalizedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
+  
+  // 生成简短的哈希码
+  const combined = [normalizedName, ...normalizedTags].join('|')
+  let hash = 0
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  
+  const shortHash = Math.abs(hash).toString(36).slice(-8)
+  
+  // 生成特征描述
+  const featureParts = [
+    `char:${normalizedName.replace(/\s+/g, '_')}`,
+    `tags:${normalizedTags.slice(0, 5).join('_')}`,
+    `seed:${shortHash}`
+  ]
+  
+  return featureParts.join(', ')
 }

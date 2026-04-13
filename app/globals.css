@@ -7,8 +7,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .header-right{display:flex;gap:12px;align-items:center}
 .btn{padding:10px 20px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.3s;border:none;font-family:inherit}
 .btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:#818cf8}
 .btn-secondary{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border)}
+.btn-secondary:hover{background:#252535}
 .btn-danger{background:var(--danger);color:white}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
 .upload-area{border:2px dashed var(--border);border-radius:8px;padding:60px 40px;text-align:center;cursor:pointer;transition:all 0.3s;max-width:600px;margin:40px auto}
 .upload-area:hover{border-color:var(--accent);background:rgba(99,102,241,0.05)}
 .main-content{display:grid;grid-template-columns:280px 1fr 320px;gap:20px;min-height:calc(100vh - 200px)}
@@ -48,6 +51,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .asset-prompt{font-size:12px;background:var(--bg-primary);padding:10px;border-radius:6px;color:var(--text-secondary);font-family:monospace;max-height:120px;overflow-y:auto;white-space:pre-wrap}
 .asset-prompt-header{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 .copy-btn{font-size:11px;padding:4px 8px;background:var(--accent);border:none;border-radius:4px;color:#fff;cursor:pointer}
+.copy-btn:hover{background:#818cf8}
 .frequency-bar{display:flex;gap:4px;margin-top:8px;align-items:center}
 .frequency-star{color:var(--warning)}
 .frequency-count{font-size:11px;color:var(--text-secondary);margin-left:4px}
@@ -61,8 +65,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .form-label{display:block;margin-bottom:8px;font-size:14px;color:var(--text-secondary)}
 .form-input{width:100%;padding:12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:14px}
 .form-input:focus{outline:none;border-color:var(--accent)}
+.form-textarea{width:100%;padding:12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:14px;resize:vertical;min-height:80px;font-family:inherit}
+.form-textarea:focus{outline:none;border-color:var(--accent)}
+.form-select{width:100%;padding:12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:14px;cursor:pointer}
+.form-select:focus{outline:none;border-color:var(--accent)}
 .login-btn{width:100%;padding:12px;background:var(--accent);border:none;border-radius:6px;color:white;font-size:16px;cursor:pointer;font-weight:500}
 .login-btn:hover{background:#818cf8}
 .error-msg{color:var(--danger);font-size:13px;margin-top:8px;text-align:center}
-@media (max-width:1024px){.main-content{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.action-bar{flex-direction:column}}
+
+/* P0-2: 角色资产库样式 */
+.character-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+.character-card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:20px;transition:all 0.3s}
+.character-card:hover{border-color:var(--accent)}
+.character-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.character-name{font-size:18px;font-weight:600;color:var(--accent)}
+.character-actions{display:flex;gap:8px}
+.icon-btn{padding:6px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.2s;font-size:14px}
+.icon-btn:hover{background:var(--bg-primary);border-color:var(--accent)}
+.character-views{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.view-item{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-tertiary)}
+.view-label{font-size:11px;color:var(--text-secondary);padding:6px 8px;background:var(--bg-primary);text-align:center;border-bottom:1px solid var(--border)}
+.view-image{width:100%;height:100px;object-fit:cover;display:block}
+.view-placeholder{width:100%;height:100px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-secondary)}
+.character-info{margin-bottom:12px}
+.info-row{display:flex;margin-bottom:6px;font-size:13px}
+.info-label{color:var(--text-secondary);width:50px;flex-shrink:0}
+.info-value{color:var(--text-primary);word-break:break-all}
+.feature-code-section{background:var(--bg-tertiary);border-radius:8px;padding:12px;margin-top:12px}
+.feature-code-header{font-size:12px;color:var(--text-secondary);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.feature-code{font-size:11px;font-family:monospace;background:var(--bg-primary);padding:8px;border-radius:4px;color:var(--success);word-break:break-all;max-height:60px;overflow-y:auto}
+
+/* 模态框样式 */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid var(--border)}
+.modal-header h3{font-size:18px;font-weight:600}
+.modal-close{background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:20px;padding:4px 8px}
+.modal-close:hover{color:var(--text-primary)}
+.modal-body{padding:20px}
+.modal-footer{display:flex;justify-content:flex-end;gap:12px;padding:20px;border-top:1px solid var(--border)}
+
+@media (max-width:1024px){.main-content{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.character-grid{grid-template-columns:1fr}}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.action-bar{flex-direction:column}.character-views{grid-template-columns:repeat(3,1fr)}.view-image,.view-placeholder{height:80px}}
