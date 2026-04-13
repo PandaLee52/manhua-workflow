@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爆款视频提示词生成器 v2.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header-subtitle {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .score-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-title .icon {
+            font-size: 1.2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 0.5rem;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #fff;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        select, input {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 0.6rem;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        /* 智能规划模块 */
+        .smart-planning {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+        
+        .scene-type-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .scene-type-btn {
+            padding: 0.75rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .scene-type-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        
+        .scene-type-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #667eea;
+        }
+        
+        .scene-type-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .scene-type-label {
+            font-size: 0.8rem;
+        }
+        
+        .scene-type-duration {
+            font-size: 0.7rem;
+            color: #999;
+            margin-top: 0.25rem;
+        }
+        
+        /* 景别组合模板 */
+        .shot-template-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .shot-template-btn {
+            padding: 0.6rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.8rem;
+        }
+        
+        .shot-template-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        
+        .shot-template-btn.active {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        
+        .shot-template-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .shot-template-desc {
+            color: #999;
+            font-size: 0.7rem;
+        }
+        
+        /* 钩子检测 */
+        .hook-checker {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .hook-result {
+            display: none;
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .hook-result.success {
+            display: block;
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #a5d6a7;
+        }
+        
+        .hook-result.warning {
+            display: block;
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+            color: #ffcc80;
+        }
+        
+        .hook-result.error {
+            display: block;
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            color: #ef9a9a;
+        }
+        
+        /* 输出区域 */
+        .output-section {
+            margin-top: 1rem;
+        }
+        
+        .output-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .output-tab {
+            padding: 0.5rem 1rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        
+        .output-tab.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        .output-content {
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            padding: 1rem;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        
+        .copy-btn {
+            float: right;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        /* 分镜序列预览 */
+        .shot-sequence {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+        
+        .shot-item {
+            flex-shrink: 0;
+            width: 80px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 0.5rem;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .shot-item .shot-type {
+            font-size: 0.7rem;
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .shot-item .shot-duration {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0.25rem 0;
+        }
+        
+        .shot-item .shot-desc {
+            font-size: 0.65rem;
+            color: #999;
+        }
+        
+        /* 快速选项 */
+        .quick-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .quick-option {
+            padding: 0.4rem 0.8rem;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quick-option:hover {
+            background: rgba(102, 126, 234, 0.4);
+        }
+        
+        .quick-option.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        /* 平台选择 */
+        .platform-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .platform-btn {
+            padding: 0.6rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .platform-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .platform-btn.active {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+        
+        .platform-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .platform-lang {
+            font-size: 0.7rem;
+            color: #999;
+        }
+        
+        /* 提示信息 */
+        .tips {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 3px solid #667eea;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        
+        .tips strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎬 爆款视频提示词生成器 <span class="score-badge">v2.0 智能规划版</span></h1>
+            <p class="header-subtitle">景别组合 · 场景智能识别 · 钩子检测 · 多平台适配</p>
+        </header>
+        
+        <div class="main-grid">
+            <!-- 左侧：输入区 -->
+            <div class="left-column">
+                <!-- 场景类型智能识别 -->
+                <div class="card smart-planning">
+                    <div class="card-title">
+                        <span class="icon">🧠</span>
+                        场景类型智能识别
+                    </div>
+                    <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 0.75rem;">选择场景类型，自动推荐最佳时长和景别组合</p>
+                    <div class="scene-type-selector">
+                        <div class="scene-type-btn active" onclick="selectSceneType(this, 'action')">
+                            <div class="scene-type-icon">⚔️</div>
+                            <div class="scene-type-label">动作戏</div>
+                            <div class="scene-type-duration">0.5-3秒 快切</div>
+                        </div>
+                        <div class="scene-type-btn" onclick="selectSceneType(this, 'dialogue')">
+                            <div class="scene-type-icon">💬</div>
+                            <div class="scene-type-label">对话场景</div>
+                            <div class="scene-type-duration">3-5秒 中速</div>
+                        </div>
+                        <div class="scene-type-btn" onclick="selectSceneType(this, 'emotion')">
+                            <div class="scene-type-icon">💫</div>
+                            <div class="scene-type-label">情感时刻</div>
+                            <div class="scene-type-duration">3-8秒 慢切</div>
+                        </div>
+                    </div>
+                    <div id="sceneTypeTip" class="tips">
+                        <strong>动作戏模式：</strong>快速切换镜头，营造紧张感。推荐景别组合：全景→中景→特写循环
+                    </div>
+                </div>
+                
+                <!-- 景别组合模板 -->
+                <div class="card">
+                    <div class="card-title">
+                        <span class="icon">📐</span>
+                        景别组合模板
+                    </div>
+                    <div class="shot-template-grid">
+                        <div class="shot-template-btn active" onclick="selectShotTemplate(this, 'intro')">
+                            <div class="shot-template-name">开场引入型</div>
+                            <div class="shot-template-desc">远景→全景→中景<br>交代环境到人物</div>
+                        </div>
+                        <div class="shot-template-btn" onclick="selectShotTemplate(this, 'emotion-build')">
+                            <div class="shot-template-name">情绪递进型</div>
+                            <div class="shot-template-desc">中景→近景→特写<br>情绪逐步放大</div>
+                        </div>
+                        <div class="shot-template-btn" onclick="selectShotTemplate(this, 'action-fast')">
+                            <div class="shot-template-name">动作快切型</div>
+                            <div class="shot-template-desc">全景→中景→特写<br>快速切换节奏</div>
+                        </div>
+                        <div class="shot-template-btn" onclick="selectShotTemplate(this, 'contrast')">
+                            <div class="shot-template-name">对比反差型</div>
+                            <div class="shot-template-desc">远景↔特写交替<br>强烈视觉冲击</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <div class="form-label">生成的景别序列预览：</div>
+                        <div class="shot-sequence" id="shotSequencePreview">
+                            <div class="shot-item">
+                                <div class="shot-type">远景</div>
+                                <div class="shot-duration">3秒</div>
+                                <div class="shot-desc">交代环境</div>
+                            </div>
+                            <div class="shot-item">
+                                <div class="shot-type">全景</div>
+                                <div class="shot-duration">4秒</div>
+                                <div class="shot-desc">人物入场</div>
+                            </div>
+                            <div class="shot-item">
+                                <div class="shot-type">中景</div>
+                                <div class="shot-duration">5秒</div>
+                                <div class="shot-desc">核心行为</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 场景描述输入 -->
+                <div class="card">
+                    <div class="card-title">
+                        <span class="icon">✍️</span>
+                        场景描述
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">画面描述（输入后自动检测钩子）</label>
+                        <textarea id="sceneDescription" placeholder="例：清晨阳光洒入教室，女主站在窗边，手中握着一封信，眼神复杂地望向窗外..." oninput="checkHook()"></textarea>
+                    </div>
+                    
+                    <!-- 钩子检测 -->
+                    <div class="hook-checker">
+                        <div class="form-label">🔍 爆款钩子检测</div>
+                        <div id="hookResult" class="hook-result"></div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label">角色/关键词</label>
+                        <input type="text" id="keywords" placeholder="例：少女、教室、信件、忧郁">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">风格选择</label>
+                        <div class="quick-options">
+                            <div class="quick-option active" onclick="toggleOption(this, '日系动漫')">日系动漫</div>
+                            <div class="quick-option" onclick="toggleOption(this, '韩漫风格')">韩漫风格</div>
+                            <div class="quick-option" onclick="toggleOption(this, '写实风')">写实风</div>
+                            <div class="quick-option" onclick="toggleOption(this, '赛博朋克')">赛博朋克</div>
+                            <div class="quick-option" onclick="toggleOption(this, '古风')">古风</div>
+                            <div class="quick-option" onclick="toggleOption(this, 'Q版')">Q版</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：输出区 -->
+            <div class="right-column">
+                <!-- 平台选择 -->
+                <div class="card">
+                    <div class="card-title">
+                        <span class="icon">🎯</span>
+                        目标平台
+                    </div>
+                    <div class="platform-selector">
+                        <div class="platform-btn active" onclick="selectPlatform(this, 'kling')">
+                            <div class="platform-name">可灵AI</div>
+                            <div class="platform-lang">中文提示词</div>
+                        </div>
+                        <div class="platform-btn" onclick="selectPlatform(this, 'jimeng')">
+                            <div class="platform-name">即梦</div>
+                            <div class="platform-lang">中文提示词</div>
+                        </div>
+                        <div class="platform-btn" onclick="selectPlatform(this, 'runway')">
+                            <div class="platform-name">Runway</div>
+                            <div class="platform-lang">英文提示词</div>
+                        </div>
+                        <div class="platform-btn" onclick="selectPlatform(this, 'vidu')">
+                            <div class="platform-name">Vidu</div>
+                            <div class="platform-lang">英文提示词</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 生成按钮 -->
+                <div class="card">
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="generatePrompt()" style="flex: 1;">🚀 生成爆款提示词</button>
+                        <button class="btn btn-secondary" onclick="generateSequence()">📋 生成完整分镜序列</button>
+                    </div>
+                </div>
+                
+                <!-- 输出结果 -->
+                <div class="card output-section">
+                    <div class="card-title">
+                        <span class="icon">📤</span>
+                        输出结果
+                        <button class="btn btn-secondary copy-btn" onclick="copyOutput()">📋 复制</button>
+                    </div>
+                    <div class="output-tabs">
+                        <div class="output-tab active" onclick="switchOutputTab(this, 'single')">单镜头</div>
+                        <div class="output-tab" onclick="switchOutputTab(this, 'sequence')">分镜序列</div>
+                        <div class="output-tab" onclick="switchOutputTab(this, 'json')">JSON格式</div>
+                    </div>
+                    <div class="output-content" id="outputContent">
+等待生成提示词...
+
+点击「生成爆款提示词」开始创作
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 状态管理
+        const state = {
+            sceneType: 'action',
+            shotTemplate: 'intro',
+            platform: 'kling',
+            style: '日系动漫',
+            outputMode: 'single'
+        };
+        
+        // 场景类型配置
+        const sceneTypeConfig = {
+            action: {
+                durationRange: [0.5, 3],
+                tip: '动作戏模式：快速切换镜头，营造紧张感。推荐景别组合：全景→中景→特写循环',
+                defaultDuration: 2
+            },
+            dialogue: {
+                durationRange: [3, 5],
+                tip: '对话场景模式：中等节奏，侧重表情捕捉。推荐景别组合：中景↔近景交替',
+                defaultDuration: 4
+            },
+            emotion: {
+                durationRange: [3, 8],
+                tip: '情感时刻模式：慢速切换，情绪渲染。推荐景别组合：中景→近景→特写递进',
+                defaultDuration: 6
+            }
+        };
+        
+        // 景别组合模板
+        const shotTemplates = {
+            'intro': [
+                { type: '远景', duration: 3, desc: '交代环境' },
+                { type: '全景', duration: 4, desc: '人物入场' },
+                { type: '中景', duration: 5, desc: '核心行为' }
+            ],
+            'emotion-build': [
+                { type: '中景', duration: 4, desc: '建立情绪' },
+                { type: '近景', duration: 5, desc: '表情捕捉' },
+                { type: '特写', duration: 6, desc: '情绪爆发' }
+            ],
+            'action-fast': [
+                { type: '全景', duration: 2, desc: '动作起手' },
+                { type: '中景', duration: 1.5, desc: '动作过程' },
+                { type: '特写', duration: 1, desc: '关键打击' }
+            ],
+            'contrast': [
+                { type: '远景', duration: 4, desc: '环境大景' },
+                { type: '特写', duration: 3, desc: '细节冲击' },
+                { type: '远景', duration: 3, desc: '空间对比' },
+                { type: '特写', duration: 2, desc: '情绪聚焦' }
+            ]
+        };
+        
+        // 景别中英对照
+        const shotTypeMap = {
+            '远景': { en: 'Extreme wide shot', cn: '远景' },
+            '全景': { en: 'Wide shot', cn: '全景' },
+            '中景': { en: 'Medium shot', cn: '中景' },
+            '近景': { en: 'Medium close-up', cn: '近景' },
+            '特写': { en: 'Close-up', cn: '特写' }
+        };
+        
+        // 运镜中英对照
+        const cameraMotionMap = {
+            '固定': { en: 'static', cn: '固定镜头' },
+            '推': { en: 'push in', cn: '推进' },
+            '拉': { en: 'pull out', cn: '拉远' },
+            '摇': { en: 'pan', cn: '摇镜' },
+            '移': { en: 'tracking shot', cn: '移镜头' },
+            '跟': { en: 'follow shot', cn: '跟随镜头' }
+        };
+        
+        // 钩子检测关键词
+        const hookPatterns = {
+            suspense: {
+                name: '悬念钩子',
+                patterns: ['竟然', '没想到', '原来', '意外发现', '不可思议', '震惊'],
+                tip: '✅ 检测到悬念钩子！"竟然"、"没想到"等词汇能引发观众好奇心'
+            },
+            contrast: {
+                name: '反转钩子',
+                patterns: ['却', '反而', '竟然是', '原来不是', '结果'],
+                tip: '✅ 检测到反转钩子！对比反差能产生强烈情绪冲击'
+            },
+            emotion: {
+                name: '情绪钩子',
+                patterns: ['眼泪', '心痛', '绝望', '希望', '温暖', '感动'],
+                tip: '✅ 检测到情绪钩子！情感词汇能引发观众共鸣'
+            },
+            action: {
+                name: '动作钩子',
+                patterns: ['突然', '猛地', '飞快', '瞬间', '一拳', '一脚'],
+                tip: '✅ 检测到动作钩子！快速动作能抓住观众注意力'
+            }
+        };
+        
+        // 场景类型选择
+        function selectSceneType(btn, type) {
+            document.querySelectorAll('.scene-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.sceneType = type;
+            
+            const config = sceneTypeConfig[type];
+            document.getElementById('sceneTypeTip').innerHTML = `<strong>${config.tip.split('：')[0]}：</strong>${config.tip.split('：')[1] || config.tip}`;
+            
+            updateShotSequence();
+        }
+        
+        // 景别模板选择
+        function selectShotTemplate(btn, template) {
+            document.querySelectorAll('.shot-template-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.shotTemplate = template;
+            updateShotSequence();
+        }
+        
+        // 更新景别序列预览
+        function updateShotSequence() {
+            const template = shotTemplates[state.shotTemplate];
+            const config = sceneTypeConfig[state.sceneType];
+            
+            let html = '';
+            template.forEach((shot, index) => {
+                const duration = Math.min(Math.max(shot.duration, config.durationRange[0]), config.durationRange[1]);
+                html += `
+                    <div class="shot-item">
+                        <div class="shot-type">${shot.type}</div>
+                        <div class="shot-duration">${duration}秒</div>
+                        <div class="shot-desc">${shot.desc}</div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('shotSequencePreview').innerHTML = html;
+        }
+        
+        // 平台选择
+        function selectPlatform(btn, platform) {
+            document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.platform = platform;
+        }
+        
+        // 风格切换
+        function toggleOption(btn, option) {
+            btn.classList.toggle('active');
+            const activeStyles = Array.from(document.querySelectorAll('.quick-option.active'))
+                .map(b => b.textContent);
+            state.style = activeStyles.join('、');
+        }
+        
+        // 输出标签切换
+        function switchOutputTab(btn, mode) {
+            document.querySelectorAll('.output-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.outputMode = mode;
+        }
+        
+        // 钩子检测
+        function checkHook() {
+            const text = document.getElementById('sceneDescription').value;
+            const resultDiv = document.getElementById('hookResult');
+            
+            if (!text.trim()) {
+                resultDiv.className = 'hook-result';
+                resultDiv.innerHTML = '';
+                return;
+            }
+            
+            let detectedHooks = [];
+            let hasStrongHook = false;
+            
+            for (const [key, hook] of Object.entries(hookPatterns)) {
+                const found = hook.patterns.some(p => text.includes(p));
+                if (found) {
+                    detectedHooks.push(hook);
+                    if (key === 'suspense' || key === 'contrast') {
+                        hasStrongHook = true;
+                    }
+                }
+            }
+            
+            if (detectedHooks.length === 0) {
+                resultDiv.className = 'hook-result error';
+                resultDiv.innerHTML = '⚠️ 未检测到强钩子元素<br><small>建议添加：悬念词（竟然、没想到）、反转词（却、反而）或情绪词</small>';
+            } else if (hasStrongHook) {
+                resultDiv.className = 'hook-result success';
+                resultDiv.innerHTML = detectedHooks.map(h => h.tip).join('<br>');
+            } else {
+                resultDiv.className = 'hook-result warning';
+                resultDiv.innerHTML = detectedHooks.map(h => h.tip).join('<br>') + 
+                    '<br><small>💡 可添加"竟然"、"没想到"等悬念词增强钩子</small>';
+            }
+        }
+        
+        // 生成单镜头提示词
+        function generatePrompt() {
+            const description = document.getElementById('sceneDescription').value || '清晨阳光洒入教室';
+            const keywords = document.getElementById('keywords').value || '少女、教室';
+            const isEnglish = ['runway', 'vidu'].includes(state.platform);
+            
+            const template = shotTemplates[state.shotTemplate];
+            const firstShot = template[0];
+            const shotInfo = shotTypeMap[firstShot.type];
+            
+            let prompt;
+            if (isEnglish) {
+                prompt = `[${shotInfo.en}]
+Style: ${state.style}
+Scene: ${translateToEnglish(description)}
+Keywords: ${translateToEnglish(keywords)}
+Duration: ${firstShot.duration}s
+Camera: Static shot, cinematic lighting
+
+Generate a high-quality video with smooth motion and consistent character appearance.`;
+            } else {
+                prompt = `【${shotInfo.cn}】
+风格：${state.style}
+场景：${description}
+关键词：${keywords}
+时长：${firstShot.duration}秒
+运镜：固定镜头，电影级光影
+
+请生成高质量视频，保持角色一致性，动作流畅自然。`;
+            }
+            
+            document.getElementById('outputContent').textContent = prompt;
+        }
+        
+        // 生成分镜序列
+        function generateSequence() {
+            const description = document.getElementById('sceneDescription').value || '清晨阳光洒入教室';
+            const keywords = document.getElementById('keywords').value || '少女、教室';
+            const isEnglish = ['runway', 'vidu'].includes(state.platform);
+            
+            const template = shotTemplates[state.shotTemplate];
+            const config = sceneTypeConfig[state.sceneType];
+            
+            let output = '';
+            let totalDuration = 0;
+            
+            output += isEnglish ? 
+                '=== SHOT SEQUENCE ===\n\n' : 
+                '=== 分镜序列 ===\n\n';
+            
+            template.forEach((shot, index) => {
+                const duration = Math.min(Math.max(shot.duration, config.durationRange[0]), config.durationRange[1]);
+                totalDuration += duration;
+                const shotInfo = shotTypeMap[shot.type];
+                
+                if (isEnglish) {
+                    output += `--- Shot ${index + 1} ---
+Type: ${shotInfo.en}
+Duration: ${duration}s
+Description: ${shot.desc}
+Scene: ${translateToEnglish(description)}
+Keywords: ${translateToEnglish(keywords)}
+
+Prompt: ${shotInfo.en}, ${translateToEnglish(description)}, ${state.style} style, cinematic quality
+
+`;
+                } else {
+                    output += `--- 镜头 ${index + 1} ---
+景别：${shotInfo.cn}
+时长：${duration}秒
+描述：${shot.desc}
+场景：${description}
+关键词：${keywords}
+
+提示词：${shotInfo.cn}，${description}，${state.style}风格，电影级画质
+
+`;
+                }
+            });
+            
+            output += isEnglish ? 
+                `\n=== Total Duration: ${totalDuration}s ===` : 
+                `\n=== 总时长：${totalDuration}秒 ===`;
+            
+            document.getElementById('outputContent').textContent = output;
+        }
+        
+        // 简单翻译函数（实际项目中可用API）
+        function translateToEnglish(text) {
+            const dict = {
+                '少女': 'young girl',
+                '教室': 'classroom',
+                '清晨': 'early morning',
+                '阳光': 'sunlight',
+                '信件': 'letter',
+                '忧郁': 'melancholy',
+                '窗外': 'outside window',
+                '日系动漫': 'Japanese anime style',
+                '韩漫风格': 'Korean webtoon style',
+                '写实风': 'realistic style',
+                '赛博朋克': 'cyberpunk',
+                '古风': 'traditional Chinese style',
+                'Q版': 'chibi style'
+            };
+            
+            let result = text;
+            for (const [cn, en] of Object.entries(dict)) {
+                result = result.replace(new RegExp(cn, 'g'), en);
+            }
+            return result;
+        }
+        
+        // 复制输出
+        function copyOutput() {
+            const content = document.getElementById('outputContent').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('已复制到剪贴板！');
+            });
+        }
+        
+        // 初始化
+        updateShotSequence();
+    </script>
+</body>
+</html>
