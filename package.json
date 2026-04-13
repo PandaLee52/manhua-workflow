@@ -1,6 +1,6 @@
 {
   "name": "manhua-workflow-full",
-  "version": "7.5.1",
+  "version": "7.6.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

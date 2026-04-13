@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import mammoth from 'mammoth'
+// mammoth will be dynamically imported
 
 interface User {
   username: string
@@ -155,8 +155,9 @@ export default function Home() {
         // 纯文本文件
         text = await file.text()
       } else if (fileName.endsWith('.docx')) {
-        // Word文档 (.docx)
+        // Word文档 (.docx) - 使用动态导入
         const arrayBuffer = await file.arrayBuffer()
+        const mammoth = (await import('mammoth')).default
         const result = await mammoth.extractRawText({ arrayBuffer })
         text = result.value else if (fileName.endsWith('.doc')) {
         // 旧版Word文档 (.doc) - 提示用户转换
