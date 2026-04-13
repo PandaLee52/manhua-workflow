@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '../../../lib/supabase'
+import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 
 function verifyToken(token: string): { username: string } | null {
   if (!token || typeof token !== 'string') return null
@@ -10,6 +10,14 @@ function verifyToken(token: string): { username: string } | null {
 
 export async function GET(request: NextRequest) {
   try {
+    // 检查 Supabase 是否配置
+    if (!isSupabaseConfigured) {
+      return NextResponse.json({ 
+        error: '请先配置 Supabase 数据库',
+        needsSetup: true 
+      }, { status: 503 })
+    }
+
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: '未授权' }, { status: 401 })

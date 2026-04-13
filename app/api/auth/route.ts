@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '../../../lib/supabase'
+import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import crypto from 'crypto'
 
 interface User {
@@ -21,6 +21,14 @@ function generateToken(username: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 检查 Supabase 是否配置
+    if (!isSupabaseConfigured) {
+      return NextResponse.json({ 
+        error: '请先配置 Supabase 数据库。访问项目仓库查看配置指南。',
+        needsSetup: true 
+      }, { status: 503 })
+    }
+
     const body = await request.json()
     const { action, username, password } = body
 
