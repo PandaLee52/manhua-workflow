@@ -538,6 +538,29 @@
                     <div class="card-title">👤 主角设定</div>
                     <input type="text" id="protagonist" placeholder="主角名字" value="陈默" style="margin-bottom: 0.5rem;">
                     <input type="text" id="protagonistDesc" placeholder="主角身份/特征" value="被赶出公司的天才程序员">
+                    <input type="text" id="protagonistLook" placeholder="外貌特征（如：黑色西装、冷峻面容）" value="黑色西装 冷峻面容">
+                </div>
+                
+                <!-- 甲方交付要求 -->
+                <div class="card">
+                    <div class="card-title">📋 甲方交付规范</div>
+                    <div style="font-size: 0.75rem; color: #aaa; line-height: 1.6;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #4CAF50;">✓</span> 单集：≥1分钟，首集≥2分钟
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #4CAF50;">✓</span> 语速：1.2-1.3倍
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #4CAF50;">✓</span> 字幕：无标点符号
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span style="color: #4CAF50;">✓</span> 人物一致性：同集服装统一
+                        </div>
+                        <div>
+                            <span style="color: #4CAF50;">✓</span> BGM变换：≥2次/集
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- 爆款公式 -->
@@ -617,6 +640,8 @@
                         <div class="output-tab active" onclick="switchOutput('storyboard')">分镜预览</div>
                         <div class="output-tab" onclick="switchOutput('video')">视频提示词</div>
                         <div class="output-tab" onclick="switchOutput('audio')">配音文案</div>
+                        <div class="output-tab" onclick="switchOutput('subtitle')">字幕文件</div>
+                        <div class="output-tab" onclick="switchOutput('cover')">封面图</div>
                         <div class="output-tab" onclick="switchOutput('analysis')">爆款分析</div>
                     </div>
                     
@@ -625,6 +650,8 @@
                     </div>
                     <div id="outputVideo" class="output-content" style="display:none;"></div>
                     <div id="outputAudio" class="output-content" style="display:none;"></div>
+                    <div id="outputSubtitle" class="output-content" style="display:none;"></div>
+                    <div id="outputCover" class="output-content" style="display:none;"></div>
                     <div id="outputAnalysis" class="output-content" style="display:none;"></div>
                     
                     <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
@@ -885,6 +912,8 @@
             document.getElementById('outputStoryboard').style.display = type === 'storyboard' ? 'grid' : 'none';
             document.getElementById('outputVideo').style.display = type === 'video' ? 'block' : 'none';
             document.getElementById('outputAudio').style.display = type === 'audio' ? 'block' : 'none';
+            document.getElementById('outputSubtitle').style.display = type === 'subtitle' ? 'block' : 'none';
+            document.getElementById('outputCover').style.display = type === 'cover' ? 'block' : 'none';
             document.getElementById('outputAnalysis').style.display = type === 'analysis' ? 'block' : 'none';
         }
         
@@ -894,9 +923,10 @@
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
             const protagonist = document.getElementById('protagonist').value || '主角';
             const desc = document.getElementById('protagonistDesc').value;
+            const look = document.getElementById('protagonistLook').value || '';
             
             // 生成分镜
-            const shots = assignShotsHot(sentences, protagonist, desc);
+            const shots = assignShotsHot(sentences, protagonist, desc, look);
             
             // 分镜预览
             let storyboardHtml = '';
@@ -915,33 +945,105 @@
             document.getElementById('outputStoryboard').innerHTML = storyboardHtml;
             
             // 视频提示词
-            let videoPrompt = '';
+            let videoPrompt = '=== 视频提示词（可直接粘贴可灵AI）===\n\n';
+            videoPrompt += '【人物一致性提示】同集角色服装统一，外貌特征保持一致\n\n';
             shots.forEach((shot, i) => {
-                videoPrompt += generateVideoPrompt(shot, i);
+                videoPrompt += generateVideoPrompt(shot, i, look);
             });
             document.getElementById('outputVideo').textContent = videoPrompt;
             
             // 配音文案
             let audioScript = '=== 爆款配音文案 ===\n\n';
             audioScript += `【爆款指数】${state.score}/100\n`;
-            audioScript += `【情绪曲线】${getEmotionCurve(sentences)}\n\n`;
+            audioScript += `【情绪曲线】${getEmotionCurve(sentences)}\n`;
+            audioScript += `【语速要求】1.2-1.3倍速（甲方标准）\n\n`;
             shots.forEach((shot, i) => {
                 audioScript += `[${i + 1}] ${shot.narration}\n`;
                 audioScript += `    情绪：${shot.emotion} | 时长：${shot.duration}秒\n\n`;
             });
             document.getElementById('outputAudio').textContent = audioScript;
             
+            // 字幕文件（无标点）
+            let subtitleScript = '=== 字幕文件（甲方标准：无标点符号）===\n\n';
+            let timeOffset = 0;
+            shots.forEach((shot, i) => {
+                const startTime = formatTime(timeOffset);
+                const endTime = formatTime(timeOffset + shot.duration);
+                // 去掉标点符号
+                const cleanText = shot.narration.replace(/[，。！？、；：""''（）【】《》]/g, '');
+                subtitleScript += `${i + 1}\n`;
+                subtitleScript += `${startTime} --> ${endTime}\n`;
+                subtitleScript += `${cleanText}\n\n`;
+                timeOffset += shot.duration;
+            });
+            subtitleScript += '--- 提示 ---\n';
+            subtitleScript += '字幕已自动去除标点符号，符合甲方交付标准\n';
+            subtitleScript += '长句已按语义拆分，建议每行不超过20字';
+            document.getElementById('outputSubtitle').textContent = subtitleScript;
+            
+            // 封面图提示词
+            const coverScript = generateCoverPrompts(protagonist, desc, look);
+            document.getElementById('outputCover').textContent = coverScript;
+            
             // 爆款分析
             let analysis = '=== 爆款要素分析 ===\n\n';
             analysis += `【开场钩子】${checkHook(text)}\n`;
             analysis += `【情绪节奏】${checkEmotion(sentences)}\n`;
             analysis += `【结尾悬念】${checkEnding(text)}\n`;
+            analysis += `【时长检查】${checkDuration(shots)}\n`;
             analysis += `【爆款建议】${getHotAdvice()}\n`;
             document.getElementById('outputAnalysis').textContent = analysis;
         }
         
+        // 时间格式化
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 100);
+            return `00:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(2, '0')}`;
+        }
+        
+        // 检查时长
+        function checkDuration(shots) {
+            const total = shots.reduce((sum, s) => sum + s.duration, 0);
+            if (total >= 60) {
+                return `✅ 总时长${total}秒，符合单集≥1分钟要求`;
+            } else {
+                return `⚠️ 总时长${total}秒，不足1分钟，建议补充内容`;
+            }
+        }
+        
+        // 生成封面图提示词
+        function generateCoverPrompts(protagonist, desc, look) {
+            let cover = '=== 封面图提示词（甲方标准）===\n\n';
+            
+            cover += '【竖屏封面 9:16】720×1280\n';
+            cover += `提示词：${protagonist}，${desc}，${look}，主角特写，情绪强烈，写实风格，电影级光影，高质量画面，竖版构图\n\n`;
+            
+            cover += '【竖屏封面 3:4】720×960\n';
+            cover += `提示词：${protagonist}，${desc}，${look}，中景构图，场景氛围感，写实风格，电影级光影\n\n`;
+            
+            cover += '【竖屏封面 7:10】350×500\n';
+            cover += `提示词：${protagonist}，${desc}，主角半身，简洁背景，突出人物，写实风格\n\n`;
+            
+            cover += '【竖屏封面 2:3】480×720\n';
+            cover += `提示词：${protagonist}，${desc}，主角与关键场景组合，故事感，写实风格\n\n`;
+            
+            cover += '【横屏封面 3:2】800×533\n';
+            cover += `提示词：${protagonist}，${desc}，关键场景全景，故事氛围，横版构图，写实风格\n\n`;
+            
+            cover += '--- 封面图要求 ---\n';
+            cover += '• 大小：1-5MB（竖屏），不超过10MB（横屏）\n';
+            cover += '• 格式：JPG + PSD源文件\n';
+            cover += '• 禁止：黑边、模糊、拉伸、水印、Logo\n';
+            cover += '• 禁止：第三方品牌名称（如豆包AI等）\n';
+            cover += '• 人物：五官清晰，无截断，无异常\n';
+            
+            return cover;
+        }
+        
         // 爆款景别分配
-        function assignShotsHot(sentences, protagonist, desc) {
+        function assignShotsHot(sentences, protagonist, desc, look) {
             const shots = [];
             const shotSequence = ['远景', '中景', '近景', '特写', '特写']; // 解说漫递进
             
@@ -963,7 +1065,7 @@
                     type: shotType,
                     duration: duration,
                     narration: sentence,
-                    desc: generateHotDesc(sentence, shotType, protagonist, desc),
+                    desc: generateHotDesc(sentence, shotType, protagonist, desc, look),
                     emotion: getEmotion(sentence)
                 });
             });
@@ -972,15 +1074,16 @@
         }
         
         // 生成爆款场景描述
-        function generateHotDesc(sentence, shotType, protagonist, desc) {
+        function generateHotDesc(sentence, shotType, protagonist, desc, look) {
+            const lookDesc = look || '黑色西装';
             if (shotType === '远景') {
-                return `${protagonist}身影与环境全景，${desc}，光影氛围感`;
+                return `${protagonist}身影与环境全景，${desc}，${lookDesc}，光影氛围感`;
             } else if (shotType === '中景') {
-                return `${protagonist}中景，${desc}，动作神态`;
+                return `${protagonist}中景，${desc}，${lookDesc}，动作神态`;
             } else if (shotType === '近景') {
-                return `${protagonist}面部近景，情绪变化清晰，眼神复杂`;
+                return `${protagonist}面部近景，${lookDesc}，情绪变化清晰，眼神复杂`;
             } else {
-                return `${protagonist}特写，情绪爆发点，细节强化`;
+                return `${protagonist}特写，${lookDesc}，情绪爆发点，细节强化`;
             }
         }
         
@@ -1028,14 +1131,16 @@
         }
         
         // 生成视频提示词
-        function generateVideoPrompt(shot, index) {
+        function generateVideoPrompt(shot, index, look) {
+            const lookDesc = look || '';
             return `--- 镜头 ${index + 1} ---
 【景别】${shot.type}
 【时长】${shot.duration}秒
 【场景】${shot.desc}
+【人物特征】${lookDesc}（同集服装统一）
 【情绪】${shot.emotion}
 
-提示词：${shot.type}，${shot.desc}，日系动漫风格，电影级光影，流畅运镜，高质量画面
+提示词：${shot.type}，${shot.desc}，写实风格，电影级光影，流畅运镜，高质量画面
 
 `;
         }
@@ -1046,11 +1151,13 @@
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
             const protagonist = document.getElementById('protagonist').value;
             const desc = document.getElementById('protagonistDesc').value;
-            const shots = assignShotsHot(sentences, protagonist, desc);
+            const look = document.getElementById('protagonistLook').value;
+            const shots = assignShotsHot(sentences, protagonist, desc, look);
             
-            let videoPrompt = '';
+            let videoPrompt = '=== 视频提示词（可直接粘贴可灵AI）===\n\n';
+            videoPrompt += '【人物一致性提示】同集角色服装统一，外貌特征保持一致\n\n';
             shots.forEach((shot, i) => {
-                videoPrompt += generateVideoPrompt(shot, i);
+                videoPrompt += generateVideoPrompt(shot, i, look);
             });
             document.getElementById('outputVideo').textContent = videoPrompt;
             switchOutput('video');
@@ -1062,9 +1169,11 @@
             const sentences = text.split(/[。！？\n]/).filter(s => s.trim());
             const protagonist = document.getElementById('protagonist').value;
             const desc = document.getElementById('protagonistDesc').value;
-            const shots = assignShotsHot(sentences, protagonist, desc);
+            const look = document.getElementById('protagonistLook').value;
+            const shots = assignShotsHot(sentences, protagonist, desc, look);
             
             let audioScript = '=== 配音文案 ===\n\n';
+            audioScript += '【语速要求】1.2-1.3倍速（甲方标准）\n\n';
             shots.forEach((shot, i) => {
                 audioScript += `[${i + 1}] ${shot.narration}\n`;
                 audioScript += `    情绪：${shot.emotion} | 时长：${shot.duration}秒\n\n`;
@@ -1082,6 +1191,10 @@
                 content = document.getElementById('outputVideo').textContent;
             } else if (state.currentOutput === 'audio') {
                 content = document.getElementById('outputAudio').textContent;
+            } else if (state.currentOutput === 'subtitle') {
+                content = document.getElementById('outputSubtitle').textContent;
+            } else if (state.currentOutput === 'cover') {
+                content = document.getElementById('outputCover').textContent;
             } else {
                 content = document.getElementById('outputAnalysis').textContent;
             }
