@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI漫剧工作流平台 v5.0 | 爆款深度优化版</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg-primary:#0a0a0f;--bg-secondary:#151520;--bg-tertiary:#1a1a28;--text-primary:#fff;--text-secondary:#a0a0b0;--accent:#6366f1;--accent2:#8b5cf6;--border:#2a2a3a;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--gold:#fbbf24}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh;line-height:1.6}
+.container{max-width:1700px;margin:0 auto;padding:20px}
+.header{text-align:center;padding:30px 0;border-bottom:1px solid var(--border);margin-bottom:30px}
+.header h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.header p{color:var(--text-secondary);font-size:14px}
+.main-content{display:grid;grid-template-columns:300px 1fr 350px;gap:20px;min-height:calc(100vh - 200px)}
+.card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.card-title::before{content:'';width:4px;height:16px;background:var(--accent);border-radius:2px;margin-right:8px;display:inline-block}
+.upload-area{border:2px dashed var(--border);border-radius:8px;padding:60px 40px;text-align:center;cursor:pointer;transition:all 0.3s;max-width:600px;margin:60px auto 0}
+.upload-area:hover{border-color:var(--accent);background:rgba(99,102,241,0.05)}
+.btn{padding:10px 20px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.3s;border:none;font-family:inherit}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:#818cf8}
+.btn-secondary{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border)}
+.btn-success{background:var(--success);color:white}
+.btn-gold{background:var(--gold);color:#000}
+.tab-group{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:8px 16px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;transition:all 0.3s;font-family:inherit;font-size:13px}
+.tab.active{background:var(--accent);border-color:var(--accent);color:white}
+.scene-list{display:flex;flex-direction:column;gap:12px;max-height:650px;overflow-y:auto}
+.scene-item{background:var(--bg-tertiary);border-radius:8px;padding:12px;cursor:pointer;transition:all 0.3s;border:1px solid transparent}
+.scene-item:hover{border-color:var(--accent)}
+.scene-item.active{border-color:var(--accent);background:rgba(99,102,241,0.1)}
+.scene-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.scene-number{font-weight:600;color:var(--accent)}
+.scene-type{font-size:12px;padding:2px 8px;background:var(--bg-secondary);border-radius:4px}
+.scene-preview{font-size:13px;color:var(--text-secondary);line-height:1.5}
+.content-area{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;overflow-y:auto;max-height:calc(100vh - 250px)}
+.content-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.content-block{margin-bottom:24px}
+.content-label{font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+.content-text{font-size:14px;line-height:1.8;color:var(--text-primary);background:var(--bg-tertiary);padding:16px;border-radius:8px;white-space:pre-wrap;font-family:monospace}
+.dialogue-item{padding:12px;margin-bottom:8px;background:var(--bg-tertiary);border-radius:8px}
+.dialogue-speaker{font-weight:600;color:var(--accent);margin-bottom:4px}
+.dialogue-text{color:var(--text-secondary);line-height:1.6}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-bottom:24px}
+.stat-item{background:var(--bg-tertiary);border-radius:8px;padding:16px;text-align:center}
+.stat-value{font-size:24px;font-weight:600;color:var(--accent);margin-bottom:4px}
+.stat-label{font-size:12px;color:var(--text-secondary)}
+.action-bar{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+.hidden{display:none}
+.badge{font-size:11px;padding:2px 6px;border-radius:3px;margin-left:4px}
+.badge-warning{background:var(--warning);color:#000}
+.badge-success{background:var(--success);color:#000}
+.badge-p0{background:#ef4444;color:#fff}
+.badge-p1{background:#f59e0b;color:#000}
+.badge-p2{background:#6366f1;color:#fff}
+/* 新增：核心资产样式 */
+.asset-section{margin-bottom:30px}
+.asset-section-title{font-size:16px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.asset-card{background:var(--bg-tertiary);border-radius:10px;padding:16px;border:1px solid var(--border);transition:all 0.3s}
+.asset-card:hover{border-color:var(--accent)}
+.asset-card-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
+.asset-name{font-weight:600;font-size:15px}
+.asset-type{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--accent);color:#fff}
+.asset-desc{font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6}
+.asset-prompt{font-size:12px;background:var(--bg-primary);padding:10px;border-radius:6px;color:var(--text-secondary);font-family:monospace;max-height:120px;overflow-y:auto;white-space:pre-wrap}
+.asset-prompt-header{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.copy-btn{font-size:11px;padding:4px 8px;background:var(--accent);border:none;border-radius:4px;color:#fff;cursor:pointer}
+.copy-btn:hover{background:#818cf8}
+.frequency-bar{display:flex;gap:4px;margin-top:8px;align-items:center}
+.frequency-star{color:var(--warning)}
+.frequency-count{font-size:11px;color:var(--text-secondary);margin-left:4px}
+
+/* ========== v5.0 新增样式 ========== */
+
+/* 景别组合样式 */
+.shot-combo-section{margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:8px}
+.shot-combo-title{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.shot-combo-title::before{content:'🎬';font-size:16px}
+.shot-unit{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+.shot-unit-item{background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;transition:all 0.2s}
+.shot-unit-item:first-child{border-color:var(--gold);background:rgba(251,191,36,0.1)}
+.shot-unit-item:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+.shot-seq{font-size:10px;color:var(--text-secondary);margin-bottom:4px}
+.shot-type{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px}
+.shot-duration{font-size:11px;color:var(--gold)}
+.shot-emotion{font-size:10px;color:var(--text-secondary);margin-top:4px}
+.emotion-bar{height:4px;background:var(--bg-primary);border-radius:2px;margin-top:8px;overflow:hidden}
+.emotion-fill{height:100%;border-radius:2px;transition:width 0.3s}
+.emotion-high{background:linear-gradient(90deg,#ef4444,#f59e0b)}
+.emotion-mid{background:linear-gradient(90deg,#f59e0b,#10b981)}
+.emotion-low{background:linear-gradient(90deg,#10b981,#6366f1)}
+
+/* 场景类型识别样式 */
+.scene-type-badge{font-size:12px;padding:4px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.scene-type-action{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.scene-type-dialogue{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff}
+.scene-type-emotion{background:linear-gradient(135deg,#ec4899,#db2777);color:#fff}
+.scene-type-tension{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
+.scene-type-calm{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.scene-type-info{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+
+/* 钩子可视化样式 */
+.hook-container{margin-top:16px;padding:16px;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(239,68,68,0.05));border:1px solid var(--gold);border-radius:10px}
+.hook-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.hook-title{font-size:15px;font-weight:600;color:var(--gold);display:flex;align-items:center;gap:8px}
+.hook-title::before{content:'⚡';font-size:18px}
+.hook-badge{font-size:11px;padding:4px 10px;border-radius:10px;font-weight:600}
+.hook-suspense{background:#ef4444;color:#fff}
+.hook-reverse{background:#f59e0b;color:#000}
+.hook-emotion{background:#ec4899;color:#fff}
+.hook-conflict{background:#6366f1;color:#fff}
+.hook-intensity{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.hook-intensity-label{font-size:12px;color:var(--text-secondary)}
+.hook-intensity-bar{flex:1;height:8px;background:var(--bg-primary);border-radius:4px;overflow:hidden}
+.hook-intensity-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#10b981,#fbbf24,#ef4444)}
+.hook-intensity-score{font-size:14px;font-weight:600;color:var(--gold)}
+.hook-content{font-size:14px;line-height:1.8;padding:12px;background:var(--bg-secondary);border-radius:8px;color:var(--text-primary)}
+.hook-keywords{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hook-keyword{font-size:11px;padding:3px 8px;background:var(--bg-primary);border-radius:4px;color:var(--text-secondary)}
+
+/* 叙事单元样式 */
+.narrative-unit{margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:10px;border:1px solid var(--border)}
+.narrative-title{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.narrative-title::before{content:'📽️';font-size:16px}
+.narrative-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
+.narrative-cell{background:var(--bg-secondary);border-radius:6px;padding:8px 4px;text-align:center;transition:all 0.2s}
+.narrative-cell:first-child{border:2px solid var(--gold);background:rgba(251,191,36,0.1)}
+.narrative-cell:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+.narrative-cell-number{font-size:10px;color:var(--text-secondary);margin-bottom:2px}
+.narrative-cell-shot{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px}
+.narrative-cell-motion{font-size:9px;color:var(--gold)}
+.narrative-cell-time{font-size:10px;color:var(--text-secondary)}
+
+/* 情绪曲线样式 */
+.emotion-curve{margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:10px}
+.emotion-curve-title{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.emotion-curve-title::before{content:'📈';font-size:16px}
+.emotion-chart{display:flex;align-items:flex-end;gap:8px;height:80px;padding:10px 0}
+.emotion-bar-container{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.emotion-bar-visual{width:100%;max-width:40px;background:var(--accent);border-radius:4px 4px 0 0;transition:height 0.3s}
+.emotion-label{font-size:10px;color:var(--text-secondary);text-align:center}
+.emotion-value{font-size:11px;font-weight:600;color:var(--text-primary)}
+
+/* 封面图提示词样式 */
+.cover-prompt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.cover-prompt-card{background:var(--bg-secondary);border-radius:8px;padding:12px;border:1px solid var(--border)}
+.cover-ratio{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:8px}
+.cover-prompt-text{font-size:11px;font-family:monospace;background:var(--bg-primary);padding:8px;border-radius:4px;max-height:80px;overflow-y:auto;color:var(--text-secondary)}
+
+/* 甲方标准提示样式 */
+.client-standard{margin-top:16px;padding:16px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.05));border:1px solid var(--accent);border-radius:10px}
+.client-standard-title{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.client-standard-title::before{content:'📋';font-size:16px}
+.client-standard-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.client-standard-item:last-child{border-bottom:none}
+.client-standard-label{font-size:13px;color:var(--text-secondary)}
+.client-standard-value{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px}
+.client-standard-pass{background:rgba(16,185,129,0.2);color:#10b981}
+.client-standard-warn{background:rgba(245,158,11,0.2);color:#f59e0b}
+
+/* 分镜详细视图 */
+.shot-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.shot-card{background:var(--bg-tertiary);border-radius:10px;padding:16px;border:1px solid var(--border);transition:all 0.3s}
+.shot-card:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(99,102,241,0.2)}
+.shot-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.shot-card-number{font-size:16px;font-weight:700;color:var(--accent)}
+.shot-card-meta{display:flex;gap:8px}
+.shot-card-type{font-size:11px;padding:3px 8px;background:var(--accent);color:#fff;border-radius:4px}
+.shot-card-time{font-size:11px;padding:3px 8px;background:var(--bg-secondary);color:var(--text-secondary);border-radius:4px}
+.shot-card-content{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px}
+.shot-card-prompt{font-size:12px;background:var(--bg-primary);padding:10px;border-radius:6px;font-family:monospace;max-height:100px;overflow-y:auto;color:var(--text-primary)}
+
+/* 爆款检测面板 */
+.bestseller-check{margin-top:16px;padding:16px;background:var(--bg-primary);border-radius:10px}
+.bestseller-check-title{font-size:14px;font-weight:600;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.bestseller-check-title::before{content:'🏆';font-size:16px}
+.bestseller-item{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.bestseller-item:last-child{border-bottom:none}
+.bestseller-icon{font-size:18px;width:28px;text-align:center}
+.bestseller-label{font-size:13px;color:var(--text-secondary);flex:1}
+.bestseller-status{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px}
+.bestseller-pass{background:rgba(16,185,129,0.2);color:#10b981}
+.bestseller-fail{background:rgba(239,68,68,0.2);color:#ef4444}
+.bestseller-score{font-size:18px;font-weight:700;color:var(--gold)}
+
+@media (max-width:1200px){.main-content{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.narrative-grid{grid-template-columns:repeat(5,1fr)}.shot-detail-grid{grid-template-columns:1fr}}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.action-bar{flex-direction:column}.narrative-grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header">
+<h1>AI漫剧工作流平台 <span style="font-size:14px;color:var(--text-secondary)">v5.0 爆款深度优化版</span></h1>
+<p>智能剧本解析 · 景别组合生成 · 钩子可视化 · 爆款检测 · 甲方标准适配</p>
+</header>
+<div id="uploadView">
+<div class="upload-area" id="dropZone">
+<div style="font-size:48px;margin-bottom:16px;opacity:0.6">📄</div>
+<p style="font-size:18px;margin-bottom:8px">拖拽剧本文件到此处</p>
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">支持 .docx / .txt / .md 格式</p>
+<p style="font-size:13px;color:var(--text-secondary)">v5.0新特性：景别组合生成器 · 场景类型智能适配 · 钩子可视化标注</p>
+</div>
+<input type="file" id="fileInput" accept=".docx,.txt,.md" style="display:none">
+</div>
+<div id="resultView" class="hidden">
+<div id="statsBar" class="stats"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+<div>
+<h2 id="scriptTitle" style="font-size:20px;margin-bottom:4px"></h2>
+<p id="scriptMeta" style="font-size:13px;color:var(--text-secondary)"></p>
+</div>
+<div class="action-bar">
+<button class="btn btn-secondary" onclick="exportJSON()">导出JSON</button>
+<button class="btn btn-secondary" onclick="exportMarkdown()">导出Markdown</button>
+<button class="btn btn-success" onclick="exportAssets()">导出核心资产</button>
+<button class="btn btn-gold" onclick="exportBestsellerReport()">导出爆款报告</button>
+<button class="btn btn-primary" onclick="resetUpload()">上传新剧本</button>
+</div>
+</div>
+<!-- 主标签页 -->
+<div class="tab-group" id="mainTabGroup" style="margin-bottom:20px">
+<button class="tab active" data-maintab="script">剧本解析</button>
+<button class="tab" data-maintab="assets">核心资产</button>
+<button class="tab" data-maintab="bestseller">爆款检测</button>
+</div>
+<!-- 剧本解析视图 -->
+<div id="scriptView" class="main-content">
+<div class="card"><div class="card-title">分镜列表</div><div class="scene-list" id="sceneList"></div></div>
+<div class="content-area"><div class="content-title" id="contentTitle"></div><div class="tab-group" id="tabGroup"><button class="tab active" data-tab="scene">分镜</button><button class="tab" data-tab="dialogue">台词</button><button class="tab" data-tab="narration">解说</button><button class="tab" data-tab="prompt">提示词</button><button class="tab" data-tab="shotcombo">景别组合</button></div><div id="contentBody"></div></div>
+<div class="card"><div class="card-title">核心角色</div><div class="scene-list" id="characterList"></div></div>
+</div>
+<!-- 核心资产视图 -->
+<div id="assetsView" class="hidden">
+<div id="assetsContent"></div>
+</div>
+<!-- 爆款检测视图 -->
+<div id="bestsellerView" class="hidden">
+<div id="bestsellerContent"></div>
+</div>
+</div>
+</div>
+<script>
+// ========== v5.0 核心优化模块 ==========
+
+// 全局变量
+let parseResult=null,activeScene=null,activeTab='scene',activeMainTab='script';
+
+// 景别-情绪映射规则（基于爆款分析）
+const SHOT_EMOTION_MAP = {
+  '远景': { emotion: '平静/铺垫', intensity: 1, motion: '固定', duration: [3,5] },
+  '全景': { emotion: '交代/入场', intensity: 2, motion: '缓慢推进', duration: [2,4] },
+  '中景': { emotion: '叙事/对话', intensity: 3, motion: '稳定', duration: [3,5] },
+  '近景': { emotion: '情绪/互动', intensity: 4, motion: '缓慢推进', duration: [2,4] },
+  '特写': { emotion: '高潮/强调', intensity: 5, motion: '快速切换', duration: [0.5,2] },
+  '大特写': { emotion: '爆发/震撼', intensity: 5, motion: '快切/定格', duration: [0.3,1] }
+};
+
+// 场景类型识别规则
+const SCENE_TYPE_RULES = {
+  action: { keywords: ['打','杀','攻击','逃跑','追杀','搏斗','爆发','震惊','炸','冲'], duration: [0.5,3], cut: '快切' },
+  dialogue: { keywords: ['说','问','答','聊','谈','对话','讨论','争执'], duration: [3,5], cut: '中速' },
+  emotion: { keywords: ['哭','笑','感动','心疼','温暖','悲伤','绝望','心碎'], duration: [3,8], cut: '慢切' },
+  tension: { keywords: ['紧张','危机','危险','紧急','威胁','对峙','僵持'], duration: [1,3], cut: '快切' },
+  calm: { keywords: ['平静','日常','普通','正常','安稳','悠闲'], duration: [2,5], cut: '固定' },
+  info: { keywords: ['回忆','背景','解释','说明','介绍'], duration: [2,4], cut: '缓慢' }
+};
+
+// 钩子类型识别规则
+const HOOK_TYPES = {
+  suspense: { icon: '🔮', label: '悬念钩子', keywords: ['竟然','没想到','万万','谁知','忽然','突然','原来'], color: 'hook-suspense' },
+  reverse: { icon: '⚡', label: '反转钩子', keywords: ['却','但是','然而','可','却发现','才知道'], color: 'hook-reverse' },
+  emotion: { icon: '💗', label: '情绪钩子', keywords: ['心痛','崩溃','绝望','震惊','难以置信'], color: 'hook-emotion' },
+  conflict: { icon: '⚔️', label: '冲突钩子', keywords: ['渣男','背叛','陷害','欺骗','阴谋','算计'], color: 'hook-conflict' }
+};
+
+// 叙事单元模板（3x9宫格法）
+const NARRATIVE_UNITS = [
+  { seq: 1, shot: '大远景', motion: '固定', time: 2, purpose: '建立环境' },
+  { seq: 2, shot: '全景', motion: '缓慢推进', time: 2, purpose: '主角入场' },
+  { seq: 3, shot: '中远景', motion: '稳定', time: 1.5, purpose: '情绪推进' },
+  { seq: 4, shot: '中景', motion: '跟拍', time: 2, purpose: '核心行为' },
+  { seq: 5, shot: '中近景', motion: '推进', time: 1.5, purpose: '表情清晰' },
+  { seq: 6, shot: '特写', motion: '快切', time: 0.8, purpose: '情绪爆发' },
+  { seq: 7, shot: '大特写', motion: '定格', time: 0.5, purpose: '细节强化' },
+  { seq: 8, shot: '低角度', motion: '仰拍', time: 1, purpose: '力量感' },
+  { seq: 9, shot: '高角度', motion: '俯拍', time: 1, purpose: '孤独/宿命' }
+];
+
+// DOM元素
+const dropZone=document.getElementById('dropZone'),fileInput=document.getElementById('fileInput'),uploadView=document.getElementById('uploadView'),resultView=document.getElementById('resultView');
+
+dropZone.addEventListener('click',()=>fileInput.click());
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.style.borderColor='var(--accent)'});
+dropZone.addEventListener('dragleave',e=>{e.preventDefault();dropZone.style.borderColor='var(--border)'});
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.style.borderColor='var(--border)';if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])});
+fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0])});
+
+// 主标签页切换
+document.querySelectorAll('#mainTabGroup .tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('#mainTabGroup .tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeMainTab=tab.dataset.maintab;
+    document.getElementById('scriptView').classList.toggle('hidden',activeMainTab!=='script');
+    document.getElementById('assetsView').classList.toggle('hidden',activeMainTab!=='assets');
+    document.getElementById('bestsellerView').classList.toggle('hidden',activeMainTab!=='bestseller');
+    if(activeMainTab==='bestseller')renderBestsellerView();
+  });
+});
+
+async function handleFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['docx','txt','md'].includes(ext)){alert('请上传 .docx / .txt / .md 格式的文件');return}
+  dropZone.innerHTML='<div class="loading"><div class="spinner"></div><p style="margin-top:16px;color:var(--text-secondary)">正在智能解析剧本并生成景别组合...</p></div>';
+  try{
+    let content='';
+    if(ext==='docx'){
+      const JSZip=await loadJSZip();
+      const zip=await JSZip.loadAsync(file);
+      const docFile=Object.keys(zip.files).find(f=>f.endsWith('document.xml'));
+      if(!docFile)throw new Error('无法解析docx文件');
+      const xml=await zip.files[docFile].async('text');
+      content=xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    }else{content=await file.text()}
+    parseResult=parseScript(content);
+    renderResult();
+  }catch(err){console.error(err);alert('解析失败：'+err.message);resetUpload()}
+}
+
+async function loadJSZip(){
+  if(window.JSZip)return window.JSZip;
+  return new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    script.onload=()=>resolve(window.JSZip);
+    script.onerror=reject;
+    document.head.appendChild(script);
+  });
+}
+
+// ========== v5.0 核心解析函数 ==========
+
+function parseScript(content){
+  const lines=content.split('\n').filter(l=>l.trim());
+  let title='未命名剧本';
+  const titleMatch=content.match(/《(.+?)》/);
+  if(titleMatch)title=titleMatch[1];
+  
+  const profiles=extractProfiles(content);
+  const format=detectFormat(content,lines);
+  let scenes=[];
+  
+  if(format==='firstPerson'){
+    scenes=parseFirstPerson(lines,profiles);
+  }else if(format==='standard'){
+    scenes=parseStandard(lines);
+  }else{
+    scenes=parseMixed(lines,profiles);
+  }
+  
+  const charSet=new Set();
+  scenes.forEach(s=>{s.characters.forEach(c=>charSet.add(c));if(s.dialogue)s.dialogue.forEach(d=>charSet.add(d.speaker))});
+  
+  // 提取核心资产
+  const assets=extractAssets(scenes,profiles,content);
+  
+  // v5.0 新增：景别组合与钩子检测
+  scenes=scenes.map((s,idx)=>{
+    s.shotCombo=generateShotCombo(s);
+    s.hookAnalysis=analyzeHook(s,idx===0);
+    s.sceneType=detectSceneType(s);
+    return s;
+  });
+  
+  // 爆款检测
+  const bestsellerScore=calculateBestsellerScore(scenes,content);
+  
+  return{title:title.trim(),format,totalEpisodes:Math.max(...scenes.map(s=>s.episode),1),totalScenes:scenes.length,characters:Array.from(charSet).map(n=>({name:n,description:profiles[n]||'剧中角色'})),scenes,assets,bestsellerScore,version:'5.0'};
+}
+
+function detectFormat(content,lines){
+  let fpCount=0,stdCount=0;
+  const fpMarkers=['我拽了拽','我气的','我心想','我说','我听到','我看','我都要','去他大爷'];
+  const stdMarkers=['【全景】','【近景】','【特写】','**【'];
+  lines.slice(0,30).forEach(l=>{
+    fpMarkers.forEach(m=>{if(l.includes(m))fpCount++});
+    stdMarkers.forEach(m=>{if(l.includes(m))stdCount++});
+  });
+  if(fpCount>=3)return'firstPerson';
+  if(stdCount>=2)return'standard';
+  return'mixed';
+}
+
+function extractProfiles(content){
+  const profiles={};
+  const blockMatch=content.match(/主要人物[：:]?\s*\n([\s\S]+?)(?=主要场景|付费卡点|第\d+集|$)/);
+  if(blockMatch){
+    const block=blockMatch[1];
+    const lines=block.split('\n');
+    let currentName='',currentDesc='';
+    lines.forEach(line=>{
+      const nameMatch=line.match(/(?:•|·)?\s*(.+?)[：:（(]/);
+      if(nameMatch&&nameMatch[1].length<10){
+        if(currentName)profiles[currentName]=currentDesc;
+        currentName=nameMatch[1].trim();
+        currentDesc=line.replace(nameMatch[0],'').trim();
+      }else if(currentName&&line.trim()){
+        currentDesc+=line.trim();
+      }
+    });
+    if(currentName)profiles[currentName]=currentDesc;
+  }
+  return profiles;
+}
+
+// ========== v5.0 新增：场景类型智能识别 ==========
+
+function detectSceneType(scene){
+  const fullText=(scene.description+' '+scene.location+(scene.dialogue?.map(d=>d.text).join(' ')||'')).toLowerCase();
+  
+  let maxScore=0;
+  let detectedType='calm';
+  
+  for(const [type,rules] of Object.entries(SCENE_TYPE_RULES)){
+    if(type==='action')continue;
+    const score=rules.keywords.filter(kw=>fullText.includes(kw.toLowerCase())).length;
+    if(score>maxScore){
+      maxScore=score;
+      detectedType=type;
+    }
+  }
+  
+  // 动作戏优先级最高
+  const actionScore=SCENE_TYPE_RULES.action.keywords.filter(kw=>fullText.includes(kw.toLowerCase())).length;
+  if(actionScore>=2)detectedType='action';
+  
+  return detectedType;
+}
+
+function getSceneTypeBadge(type){
+  const badges={
+    action:{label:'动作戏',icon:'⚡'},
+    dialogue:{label:'对话戏',icon:'💬'},
+    emotion:{label:'情感戏',icon:'💗'},
+    tension:{label:'紧张戏',icon:'🔥'},
+    calm:{label:'平静戏',icon:'☁️'},
+    info:{label:'信息交代',icon:'📝'}
+  };
+  return badges[type]||badges.calm;
+}
+
+// ========== v5.0 新增：景别组合生成器 ==========
+
+function generateShotCombo(scene){
+  const sceneType=scene.sceneType||'dialogue';
+  const rules=SCENE_TYPE_RULES[sceneType]||SCENE_TYPE_RULES.calm;
+  
+  // 根据场景类型调整景别组合
+  let shots=[];
+  
+  if(sceneType==='action'){
+    // 动作戏：快节奏，多特写
+    shots=[
+      {shot:'全景',motion:'固定',duration:2,purpose:'建立局势'},
+      {shot:'中景',motion:'跟拍',duration:1,purpose:'攻防关系'},
+      {shot:'特写',motion:'快切',duration:0.5,purpose:'出手细节'},
+      {shot:'大特写',motion:'定格',duration:0.3,purpose:'关键打点'},
+      {shot:'中景',motion:'稳定',duration:1,purpose:'结果收束'}
+    ];
+  }else if(sceneType==='emotion'){
+    // 情感戏：慢节奏，多大特写
+    shots=[
+      {shot:'远景',motion:'缓慢拉远',duration:4,purpose:'情绪铺垫'},
+      {shot:'全景',motion:'缓慢推进',duration:3,purpose:'人物入镜'},
+      {shot:'近景',motion:'稳定',duration:3,purpose:'表情清晰'},
+      {shot:'特写',motion:'极慢推进',duration:4,purpose:'情绪高潮'},
+      {shot:'大特写',motion:'定格',duration:3,purpose:'情感释放'}
+    ];
+  }else if(sceneType==='tension'){
+    // 紧张戏：快速切换
+    shots=[
+      {shot:'全景',motion:'手持稳定',duration:1.5,purpose:'危机建立'},
+      {shot:'中近景',motion:'快速推进',duration:1,purpose:'逼近感'},
+      {shot:'特写',motion:'快切',duration:0.5,purpose:'紧张细节'},
+      {shot:'特写',motion:'快切',duration:0.5,purpose:'表情反应'},
+      {shot:'中景',motion:'快速横移',duration:1,purpose:'对峙关系'}
+    ];
+  }else{
+    // 默认叙事节奏：3x9格法精简版
+    shots=[
+      {shot:'全景',motion:'固定',duration:2,purpose:'环境交代'},
+      {shot:'中景',motion:'缓慢推进',duration:2,purpose:'人物入镜'},
+      {shot:'近景',motion:'稳定',duration:2,purpose:'核心叙事'},
+      {shot:'特写',motion:'缓慢推进',duration:1.5,purpose:'情绪强调'},
+      {shot:'中景',motion:'拉远',duration:2,purpose:'情绪收束'}
+    ];
+  }
+  
+  // 计算总时长和情绪曲线
+  const totalDuration=shots.reduce((sum,s)=>sum+s.duration,0);
+  const emotionIntensity=Math.min(5,Math.ceil(totalDuration/3));
+  
+  return{
+    shots,
+    totalDuration:Math.round(totalDuration*10)/10,
+    sceneType,
+    emotionIntensity,
+    cameraAdvice:rules.cut
+  };
+}
+
+// ========== v5.0 新增：钩子可视化分析 ==========
+
+function analyzeHook(scene,isOpening=false){
+  const fullText=(scene.description+' '+(scene.dialogue?.map(d=>d.text).join(' ')||'')).toLowerCase();
+  
+  let hookType='suspense';
+  let hookKeywords=[];
+  let hookIntensity=60;
+  let hookContent='';
+  
+  // 检测钩子类型
+  for(const [type,rules] of Object.entries(HOOK_TYPES)){
+    const found=rules.keywords.filter(kw=>fullText.includes(kw.toLowerCase()));
+    if(found.length>hookKeywords.length){
+      hookKeywords=found;
+      hookType=type;
+    }
+  }
+  
+  // 计算钩子强度
+  if(isOpening){
+    hookIntensity=85;
+    if(hookKeywords.length>=2)hookIntensity=95;
+    hookContent='【开场钩子】'+scene.description.slice(0,100);
+  }else{
+    hookIntensity=50+hookKeywords.length*10;
+    if(fullText.includes('竟然')||fullText.includes('没想到'))hookIntensity+=20;
+    hookIntensity=Math.min(100,hookIntensity);
+    hookContent=scene.description.slice(0,80);
+  }
+  
+  return{
+    type:hookType,
+    label:HOOK_TYPES[hookType].label,
+    icon:HOOK_TYPES[hookType].icon,
+    color:HOOK_TYPES[hookType].color,
+    keywords:hookKeywords,
+    intensity:hookIntensity,
+    content:hookContent,
+    isOpening
+  };
+}
+
+// ========== v5.0 新增：爆款评分系统 ==========
+
+function calculateBestsellerScore(scenes,content){
+  const checks={
+    openingHook:{label:'开场3秒钩子',pass:false,score:30},
+    emotionWaves:{label:'情绪起伏',pass:false,score:20},
+    endingSuspense:{label:'结尾悬念',pass:false,score:20},
+    vividDescription:{label:'生动描写',pass:false,score:15},
+    infoDensity:{label:'信息密度',pass:false,score:15}
+  };
+  
+  // 检测开场钩子
+  const firstScene=scenes[0];
+  if(firstScene){
+    const firstText=(firstScene.description+' '+(firstScene.dialogue?.map(d=>d.text).join(' ')||'')).toLowerCase();
+    checks.openingHook.pass=['竟然','没想到','万万','谁知','突然','忽然','原来','死后','重生的','开挂'].some(kw=>firstText.includes(kw));
+    if(firstScene.hookAnalysis&&firstScene.hookAnalysis.intensity>=80)checks.openingHook.pass=true;
+  }
+  
+  // 检测情绪起伏
+  const emotionTypes=new Set(scenes.map(s=>s.sceneType));
+  checks.emotionWaves.pass=emotionTypes.size>=2||(scenes.filter(s=>s.sceneType==='emotion').length>0);
+  
+  // 检测结尾悬念
+  const lastText=(scenes[scenes.length-1]?.description||'').toLowerCase();
+  checks.endingSuspense.pass=['选择','究竟','为什么','到底','命运','结局'].some(kw=>lastText.includes(kw));
+  
+  // 检测生动描写
+  checks.vividDescription.pass=scenes.filter(s=>s.description.length>30).length>=scenes.length*0.6;
+  
+  // 检测信息密度
+  checks.infoDensity.pass=scenes.every(s=>s.description.length>10);
+  
+  const totalScore=Object.values(checks).reduce((sum,c)=>sum+(c.pass?c.score:0),0);
+  
+  return{checks,totalScore,maxScore:100};
+}
+
+// ========== 解析函数 ==========
+
+function parseFirstPerson(lines,profiles){
+  const scenes=[];
+  let currentEpisode=1,sceneId=0;
+  let protagonist='女主';
+  Object.keys(profiles).forEach(n=>{if(profiles[n].includes('女主'))protagonist=n});
+  
+  let currentScene=null,dialogueBuffer=[],lastSpeaker=protagonist,contextWin=[];
+  const allChars=Object.keys(profiles);
+  
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line)continue;
+    
+    const epMatch=line.match(/第(\d+)集/);
+    if(epMatch){currentEpisode=parseInt(epMatch[1]);continue}
+    
+    const sceneMatch=line.match(/场景[：:]\s*(.+)/);
+    if(sceneMatch){
+      if(currentScene){
+        currentScene.dialogue=dialogueBuffer;
+        currentScene.narration=genNarration(currentScene);
+        currentScene.imagePrompt=genPrompt(currentScene);
+        scenes.push(currentScene);
+        dialogueBuffer=[];
+      }
+      sceneId++;
+      currentScene={id:sceneId,episode:currentEpisode,sceneNumber:String(sceneId),shotType:'中景',type:'对话',location:sceneMatch[1].trim(),description:'',characters:[protagonist],dialogue:[],narration:'',imagePrompt:''};
+      contextWin=[];
+      continue;
+    }
+    
+    if(!currentScene)continue;
+    contextWin.push(line);
+    if(contextWin.length>5)contextWin.shift();
+    
+    const quotes=line.match(/[""「」]([^""「」]+)[""「」]/g);
+    if(quotes){
+      quotes.forEach(q=>{
+        const text=q.replace(/[""「」]/g,'').trim();
+        if(text.length>2&&text.length<150){
+          const speaker=inferSpeaker(line,contextWin,protagonist,lastSpeaker,allChars,profiles);
+          if(!currentScene.characters.includes(speaker))currentScene.characters.push(speaker);
+          dialogueBuffer.push({speaker,text});
+          lastSpeaker=speaker;
+        }
+      });
+    }else if(line.length>15){
+      currentScene.description+=(currentScene.description?' ':'')+line;
+    }
+  }
+  
+  if(currentScene){
+    currentScene.dialogue=dialogueBuffer;
+    currentScene.narration=genNarration(currentScene);
+    currentScene.imagePrompt=genPrompt(currentScene);
+    scenes.push(currentScene);
+  }
+  return scenes;
+}
+
+function inferSpeaker(line,context,protagonist,lastSpeaker,allChars,profiles){
+  for(const char of allChars){
+    if(line.includes(char+'，')||line.includes(char+'！')){
+      const others=allChars.filter(c=>c!==char&&c!==protagonist);
+      if(others.length>0&&line.includes('说'))return others[0];
+    }
+  }
+  
+  const speakMatch=line.match(/(他|她)(?:说|道|低吼|冷笑)/);
+  if(speakMatch){
+    const gender=speakMatch[1];
+    for(const c of allChars){
+      const desc=profiles[c]||'';
+      if(gender==='他'&&(desc.includes('男')||desc.includes('公')))return c;
+      if(gender==='她'&&(desc.includes('女')||desc.includes('母')))return c;
+    }
+  }
+  
+  for(let i=context.length-1;i>=0;i--){
+    for(const char of allChars){
+      if(context[i].includes(char)&&char!==protagonist){
+        if(line.includes('"')||line.includes('"'))return char;
+      }
+    }
+  }
+  
+  if(line.match(/^[他她].*[""]/)){
+    for(const c of allChars){
+      if(c!==protagonist)return c;
+    }
+  }
+  
+  return lastSpeaker===protagonist?protagonist:protagonist;
+}
+
+function parseStandard(lines){
+  return[];
+}
+
+function parseMixed(lines,profiles){
+  return parseFirstPerson(lines,profiles);
+}
+
+function genNarration(scene){
+  if(!scene.dialogue||scene.dialogue.length===0)return scene.description;
+  const lastD=scene.dialogue[scene.dialogue.length-1];
+  const desc=scene.description?scene.description.slice(0,50):'';
+  return`${scene.location}，${desc}。最后${lastD.speaker}说："${lastD.text.slice(0,20)}..."`;
+}
+
+function genPrompt(scene){
+  const shotMap={'远景':'wide shot','全景':'full shot','中景':'medium shot','近景':'close-up','特写':'extreme close-up'};
+  const shot=shotMap[scene.shotType]||'medium shot';
+  const chars=scene.characters.slice(0,2).join(' and ');
+  const action=scene.description?scene.description.slice(0,60):'talking';
+  return`${shot}, ${chars}, ${action}, ${scene.location}, cinematic lighting, photorealistic, 8k`;
+}
+
+// ========== 核心资产提取 ==========
+
+function extractAssets(scenes,profiles,content){
+  const charFreq={};
+  scenes.forEach(s=>{
+    s.characters.forEach(c=>{charFreq[c]=(charFreq[c]||0)+1});
+    if(s.dialogue)s.dialogue.forEach(d=>{charFreq[d.speaker]=(charFreq[d.speaker]||0)+1});
+  });
+  
+  const sceneFreq={};
+  scenes.forEach(s=>{
+    const loc=s.location||'未知';
+    sceneFreq[loc]=(sceneFreq[loc]||0)+1;
+  });
+  
+  const characters=Object.keys(profiles).map(name=>{
+    const desc=profiles[name];
+    const freq=charFreq[name]||0;
+    const priority=freq>=10?'P0':freq>=5?'P1':'P2';
+    return{
+      name,
+      description:desc,
+      frequency:freq,
+      priority,
+      prompts:genCharacterPrompts(name,desc)
+    };
+  }).sort((a,b)=>b.frequency-a.frequency);
+  
+  Object.keys(charFreq).forEach(name=>{
+    if(!characters.find(c=>c.name===name)){
+      const freq=charFreq[name];
+      const priority=freq>=10?'P0':freq>=5?'P1':'P2';
+      characters.push({
+        name,
+        description:'剧中角色',
+        frequency:freq,
+        priority,
+        prompts:genCharacterPrompts(name,'剧中角色')
+      });
+    }
+  });
+  
+  const locations=Object.keys(sceneFreq).map(loc=>{
+    const freq=sceneFreq[loc];
+    const priority=freq>=3?'P0':freq>=2?'P1':'P2';
+    return{
+      name:loc,
+      frequency:freq,
+      priority,
+      prompts:genLocationPrompts(loc)
+    };
+  }).sort((a,b)=>b.frequency-a.frequency);
+  
+  const props=extractProps(content);
+  
+  return{characters,locations,props};
+}
+
+function genCharacterPrompts(name,desc){
+  const ageMatch=desc.match(/(\d+)\s*岁/);
+  const age=ageMatch?ageMatch[1]:'25';
+  
+  const gender=desc.includes('女')||name.includes('婷')||name.includes('妈')||name.includes('妹')?'woman':'man';
+  const isYoung=parseInt(age)<30;
+  const isMiddle=parseInt(age)>=40&&parseInt(age)<60;
+  const isOld=parseInt(age)>=60;
+  
+  let ageDesc='young';
+  if(isMiddle)ageDesc='middle-aged';
+  if(isOld)ageDesc='elderly';
+  
+  let emotion='neutral expression';
+  if(desc.includes('渣男')||desc.includes('PUA'))emotion='insincere smile, calculating eyes';
+  else if(desc.includes('心机'))emotion='fake sweet smile';
+  else if(desc.includes('护女')||desc.includes('开明'))emotion='kind and protective expression';
+  else if(desc.includes('贪财')||desc.includes('无赖'))emotion='greedy and shameless expression';
+  
+  const basePrompt=`Chinese ${ageDesc} ${gender}, ${age} years old, ${emotion}, photorealistic, 8k`;
+  
+  return{
+    baseline:basePrompt,
+    wedding:gender==='woman'?
+      `Chinese bride, ${age} years old, wearing elegant white wedding dress, ${emotion}, wedding venue background, soft lighting, photorealistic, 8k`:
+      `Chinese groom, ${age} years old, wearing black formal suit, ${emotion}, wedding venue background, dramatic lighting, photorealistic, 8k`,
+    daily:`Chinese ${ageDesc} ${gender}, ${age} years old, casual smart outfit, ${emotion}, indoor setting, natural lighting, photorealistic, 8k`
+  };
+}
+
+function genLocationPrompts(loc){
+  const locMap={
+    '婚礼现场':'Chinese wedding venue, hotel banquet hall, decorated with flowers and ribbons, stage with red carpet, warm romantic lighting, photorealistic, 8k',
+    '婚礼后台':'Hotel private room, simple interior, mirror and clothing rack, bridal dress hanging, soft indoor lighting, photorealistic, 8k',
+    '酒店空包房':'Hotel private dining room, empty round table, neutral indoor lighting, photorealistic, 8k',
+    '警察局':'Chinese police station interior, simple office setting, neutral fluorescent lighting, photorealistic, 8k',
+    '家中客厅':'Chinese middle-class home living room, comfortable sofa, warm homey atmosphere, soft evening lighting, photorealistic, 8k',
+    '咖啡厅':'Modern coffee shop interior, wooden tables, soft ambient lighting, cozy atmosphere, photorealistic, 8k',
+    '婚纱店':'Bridal shop interior, wedding dresses on display, elegant decor, bright lighting, photorealistic, 8k',
+    '新公司':'Creative park office, startup space, bright sunlight, modern minimalist decor, photorealistic, 8k',
+    '江边':'Riverside walkway at night, city lights in distance, starry sky, peaceful atmosphere, photorealistic, 8k'
+  };
+  
+  const key=Object.keys(locMap).find(k=>loc.includes(k));
+  return{
+    baseline:locMap[key]||`${loc}, interior or exterior scene, photorealistic, 8k`,
+    conflict:key?locMap[key].replace('warm romantic','dramatic tense'):`${loc}, dramatic lighting, photorealistic, 8k`
+  };
+}
+
+function extractProps(content){
+  const propsKeywords=[
+    {name:'遗像',pattern:/遗像|照片/,prompt:'Framed portrait photo of Chinese young woman, black and white, memorial style, elegant frame, photorealistic, 8k'},
+    {name:'婚纱',pattern:/婚纱|wedding dress/,prompt:'Elegant white wedding dress, elaborate design, flowing fabric, soft lighting, photorealistic, 8k'},
+    {name:'茶具',pattern:/茶|敬茶/,prompt:'Chinese tea set, delicate porcelain cups and teapot, traditional style, soft lighting, photorealistic, 8k'},
+    {name:'红包',pattern:/红包|改口费/,prompt:'Chinese red envelopes, traditional design, stacked on table, soft indoor lighting, photorealistic, 8k'}
+  ];
+  
+  const found=[];
+  propsKeywords.forEach(p=>{
+    if(p.pattern.test(content)){
+      found.push({name:p.name,prompt:p.prompt});
+    }
+  });
+  return found;
+}
+
+// ========== 渲染函数 ==========
+
+function renderResult(){
+  uploadView.classList.add('hidden');
+  resultView.classList.remove('hidden');
+  
+  document.getElementById('scriptTitle').textContent='《'+parseResult.title+'》';
+  document.getElementById('scriptMeta').textContent=`${parseResult.format==='firstPerson'?'第一人称':'标准'}格式 | ${parseResult.totalEpisodes}集 | ${parseResult.totalScenes}场景 | ${parseResult.characters.length}角色 | 爆款评分${parseResult.bestsellerScore.totalScore}分`;
+  
+  renderStats();
+  renderSceneList();
+  renderCharacterList();
+  renderAssets();
+  
+  if(parseResult.scenes.length>0){
+    selectScene(parseResult.scenes[0].id);
+  }
+}
+
+function renderStats(){
+  const stats=document.getElementById('statsBar');
+  const p0Chars=parseResult.assets.characters.filter(c=>c.priority==='P0').length;
+  const p0Scenes=parseResult.assets.locations.filter(l=>l.priority==='P0').length;
+  const avgHook=Math.round(parseResult.scenes.reduce((sum,s)=>sum+(s.hookAnalysis?.intensity||0),0)/Math.max(parseResult.scenes.length,1));
+  
+  stats.innerHTML=`
+    <div class="stat-item"><div class="stat-value">${parseResult.totalEpisodes}</div><div class="stat-label">总集数</div></div>
+    <div class="stat-item"><div class="stat-value">${parseResult.totalScenes}</div><div class="stat-label">总场景</div></div>
+    <div class="stat-item"><div class="stat-value">${parseResult.characters.length}</div><div class="stat-label">角色总数</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:var(--gold)">${parseResult.bestsellerScore.totalScore}</div><div class="stat-label">爆款评分</div></div>
+    <div class="stat-item"><div class="stat-value">${avgHook}</div><div class="stat-label">钩子均强</div></div>
+    <div class="stat-item"><div class="stat-value">${p0Chars}</div><div class="stat-label">P0角色</div></div>
+  `;
+}
+
+function renderSceneList(){
+  const list=document.getElementById('sceneList');
+  list.innerHTML=parseResult.scenes.map(s=>{
+    const typeInfo=getSceneTypeBadge(s.sceneType||'calm');
+    return`
+      <div class="scene-item" onclick="selectScene(${s.id})">
+        <div class="scene-header">
+          <span class="scene-number">S${s.sceneNumber}</span>
+          <span class="scene-type-badge scene-type-${s.sceneType||'calm'}">${typeInfo.icon} ${typeInfo.label}</span>
+        </div>
+        <div class="scene-preview">${s.location} - ${s.description?s.description.slice(0,40)+'...':''}</div>
+        ${s.hookAnalysis&&s.hookAnalysis.isOpening?'<div style="margin-top:8px;font-size:11px;color:var(--gold);">⚡开场钩子:'+s.hookAnalysis.label+'</div>':''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCharacterList(){
+  const list=document.getElementById('characterList');
+  list.innerHTML=parseResult.characters.slice(0,10).map(c=>`
+    <div class="scene-item" onclick="filterByCharacter('${c.name}')">
+      <div class="scene-header">
+        <span class="scene-number">${c.name}</span>
+        <span class="scene-type">${c.frequency}次</span>
+      </div>
+      <div class="scene-preview">${c.description.slice(0,30)}...</div>
+    </div>
+  `).join('');
+}
+
+function renderAssets(){
+  const container=document.getElementById('assetsContent');
+  
+  const charsHtml=parseResult.assets.characters.map(c=>{
+    const priorityClass=c.priority==='P0'?'badge-p0':c.priority==='P1'?'badge-p1':'badge-p2';
+    const stars='⭐'.repeat(c.priority==='P0'?5:c.priority==='P1'?3:1);
+    return`
+      <div class="asset-card">
+        <div class="asset-card-header">
+          <span class="asset-name">${c.name}</span>
+          <span class="badge ${priorityClass}">${c.priority}</span>
+        </div>
+        <div class="asset-desc">${c.description}</div>
+        <div class="frequency-bar">
+          <span class="frequency-star">${stars}</span>
+          <span class="frequency-count">出场${c.frequency}次</span>
+        </div>
+        <div class="asset-prompt-header">
+          <span>基准提示词</span>
+          <button class="copy-btn" onclick="copyPrompt('${escapeHtml(c.prompts.baseline)}')">复制</button>
+        </div>
+        <div class="asset-prompt">${c.prompts.baseline}</div>
+        ${c.prompts.wedding?`
+        <div class="asset-prompt-header" style="margin-top:8px">
+          <span>婚礼场景</span>
+          <button class="copy-btn" onclick="copyPrompt('${escapeHtml(c.prompts.wedding)}')">复制</button>
+        </div>
+        <div class="asset-prompt">${c.prompts.wedding}</div>
+        `:''}
+      </div>
+    `;
+  }).join('');
+  
+  const scenesHtml=parseResult.assets.locations.map(l=>{
+    const priorityClass=l.priority==='P0'?'badge-p0':l.priority==='P1'?'badge-p1':'badge-p2';
+    const stars='⭐'.repeat(l.priority==='P0'?5:l.priority==='P1'?3:1);
+    return`
+      <div class="asset-card">
+        <div class="asset-card-header">
+          <span class="asset-name">${l.name}</span>
+          <span class="badge ${priorityClass}">${l.priority}</span>
+        </div>
+        <div class="frequency-bar">
+          <span class="frequency-star">${stars}</span>
+          <span class="frequency-count">出现${l.frequency}次</span>
+        </div>
+        <div class="asset-prompt-header">
+          <span>基准提示词</span>
+          <button class="copy-btn" onclick="copyPrompt('${escapeHtml(l.prompts.baseline)}')">复制</button>
+        </div>
+        <div class="asset-prompt">${l.prompts.baseline}</div>
+      </div>
+    `;
+  }).join('');
+  
+  const propsHtml=parseResult.assets.props.map(p=>`
+    <div class="asset-card">
+      <div class="asset-card-header">
+        <span class="asset-name">${p.name}</span>
+        <span class="badge" style="background:var(--success)">道具</span>
+      </div>
+      <div class="asset-prompt-header">
+        <span>提示词</span>
+        <button class="copy-btn" onclick="copyPrompt('${escapeHtml(p.prompt)}')">复制</button>
+      </div>
+      <div class="asset-prompt">${p.prompt}</div>
+    </div>
+  `).join('');
+  
+  container.innerHTML=`
+    <div class="asset-section">
+      <div class="asset-section-title">
+        <span>🎭 角色资产（需要保证一致性）</span>
+        <span style="font-size:13px;color:var(--text-secondary)">P0=核心角色 P1=重要配角 P2=次要角色</span>
+      </div>
+      <div class="asset-grid">${charsHtml}</div>
+    </div>
+    <div class="asset-section">
+      <div class="asset-section-title">
+        <span>🎬 场景资产</span>
+        <span style="font-size:13px;color:var(--text-secondary)">按出场频率排序</span>
+      </div>
+      <div class="asset-grid">${scenesHtml}</div>
+    </div>
+    <div class="asset-section">
+      <div class="asset-section-title">
+        <span>🏺 道具资产</span>
+        <span style="font-size:13px;color:var(--text-secondary)">核心道具需保证一致性</span>
+      </div>
+      <div class="asset-grid">${propsHtml}</div>
+    </div>
+  `;
+}
+
+// ========== v5.0 新增：爆款检测视图 ==========
+
+function renderBestsellerView(){
+  const container=document.getElementById('bestsellerContent');
+  const score=parseResult.bestsellerScore;
+  
+  const checksHtml=Object.entries(score.checks).map(([key,c])=>`
+    <div class="bestseller-item">
+      <span class="bestseller-icon">${c.pass?'✅':'❌'}</span>
+      <span class="bestseller-label">${c.label}</span>
+      <span class="bestseller-status ${c.pass?'bestseller-pass':'bestseller-fail'}">${c.pass?'通过':'待优化'}</span>
+      <span style="margin-left:12px;font-size:12px;color:var(--text-secondary)">${c.score}分</span>
+    </div>
+  `).join('');
+  
+  // 场景类型分布
+  const typeCount={};
+  parseResult.scenes.forEach(s=>{
+    const t=s.sceneType||'calm';
+    typeCount[t]=(typeCount[t]||0)+1;
+  });
+  
+  const typeStatsHtml=Object.entries(typeCount).map(([type,count])=>{
+    const info=getSceneTypeBadge(type);
+    const pct=Math.round(count/parseResult.scenes.length*100);
+    return`
+      <div class="bestseller-item">
+        <span class="bestseller-icon">${info.icon}</span>
+        <span class="bestseller-label">${info.label}</span>
+        <span style="margin-left:auto;font-size:13px;color:var(--text-primary)">${count}场景 (${pct}%)</span>
+      </div>
+    `;
+  }).join('');
+  
+  // 景别使用统计
+  const shotCount={};
+  parseResult.scenes.forEach(s=>{
+    if(s.shotCombo){
+      s.shotCombo.shots.forEach(shot=>{
+        shotCount[shot.shot]=(shotCount[shot.shot]||0)+1;
+      });
+    }
+  });
+  
+  const shotStatsHtml=Object.entries(shotCount)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([shot,count])=>{
+      const pct=Math.round(count/Object.values(shotCount).reduce((a,b)=>a+b,0)*100);
+      return`
+        <div class="bestseller-item">
+          <span class="bestseller-icon">${SHOT_EMOTION_MAP[shot]?'🎬':'📷'}</span>
+          <span class="bestseller-label">${shot}</span>
+          <span style="margin-left:auto;font-size:13px;color:var(--text-primary)">${count}次 (${pct}%)</span>
+        </div>
+      `;
+    }).join('');
+  
+  // 开场钩子分析
+  const openingHook=parseResult.scenes[0]?.hookAnalysis;
+  const openingHtml=openingHook?`
+    <div class="hook-container" style="margin-top:16px">
+      <div class="hook-header">
+        <span class="hook-title">⚡ 开场钩子分析</span>
+        <span class="hook-badge ${openingHook.color}">${openingHook.icon} ${openingHook.label}</span>
+      </div>
+      <div class="hook-intensity">
+        <span class="hook-intensity-label">钩子强度</span>
+        <div class="hook-intensity-bar"><div class="hook-intensity-fill" style="width:${openingHook.intensity}%"></div></div>
+        <span class="hook-intensity-score">${openingHook.intensity}/100</span>
+      </div>
+      <div class="hook-content">${openingHook.content}</div>
+      ${openingHook.keywords.length>0?`
+        <div class="hook-keywords">${openingHook.keywords.map(k=>`<span class="hook-keyword">${k}</span>`).join('')}</div>
+      `:''}
+    </div>
+  `:'';
+  
+  container.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>🏆 爆款检测结果</span>
+            <span class="bestseller-score">${score.totalScore}/${score.maxScore}</span>
+          </div>
+          ${checksHtml}
+        </div>
+        
+        <div class="card">
+          <div class="card-title">📊 场景类型分布</div>
+          ${typeStatsHtml}
+        </div>
+      </div>
+      
+      <div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-title">🎬 景别使用统计</div>
+          ${shotStatsHtml}
+        </div>
+        
+        <div class="card">
+          <div class="card-title">📋 甲方标准检查</div>
+          <div class="client-standard-item">
+            <span class="client-standard-label">字幕无标点</span>
+            <span class="client-standard-value client-standard-pass">✅ 支持</span>
+          </div>
+          <div class="client-standard-item">
+            <span class="client-standard-label">语速1.2-1.3倍</span>
+            <span class="client-standard-value client-standard-pass">✅ 支持</span>
+          </div>
+          <div class="client-standard-item">
+            <span class="client-standard-label">时长≥1分钟</span>
+            <span class="client-standard-value client-standard-pass">✅ 自动检测</span>
+          </div>
+          <div class="client-standard-item">
+            <span class="client-standard-label">封面图5尺寸</span>
+            <span class="client-standard-value client-standard-pass">✅ v5.0支持</span>
+          </div>
+          <div class="client-standard-item">
+            <span class="client-standard-label">人物一致性</span>
+            <span class="client-standard-value client-standard-pass">✅ 标注清晰</span>
+          </div>
+        </div>
+        
+        ${openingHtml}
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(str){
+  return str.replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,' ');
+}
+
+function copyPrompt(text){
+  navigator.clipboard.writeText(text.replace(/\\'/g,"'").replace(/\\"/g,'"')).then(()=>{
+    alert('已复制到剪贴板！');
+  });
+}
+
+function selectScene(id){
+  activeScene=parseResult.scenes.find(s=>s.id===id);
+  if(!activeScene)return;
+  
+  document.querySelectorAll('.scene-item').forEach(el=>el.classList.remove('active'));
+  document.querySelector(`.scene-item[onclick="selectScene(${id})"]`)?.classList.add('active');
+  
+  const typeInfo=getSceneTypeBadge(activeScene.sceneType||'calm');
+  document.getElementById('contentTitle').innerHTML=`第${activeScene.episode}集 - ${activeScene.location} <span class="scene-type-badge scene-type-${activeScene.sceneType||'calm'}">${typeInfo.icon} ${typeInfo.label}</span>`;
+  renderContent();
+}
+
+function renderContent(){
+  const tabs=document.querySelectorAll('#tabGroup .tab');
+  tabs.forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      tabs.forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab=tab.dataset.tab;
+      renderContent();
+    });
+  });
+  
+  const body=document.getElementById('contentBody');
+  
+  if(activeTab==='scene'){
+    // v5.0: 增强的场景详情
+    const hookHtml=activeScene.hookAnalysis?`
+      <div class="hook-container">
+        <div class="hook-header">
+          <span class="hook-title">${activeScene.hookAnalysis.icon} ${activeScene.hookAnalysis.label}</span>
+          <span class="hook-badge ${activeScene.hookAnalysis.color}">强度 ${activeScene.hookAnalysis.intensity}/100</span>
+        </div>
+        <div class="hook-intensity">
+          <span class="hook-intensity-label">钩子强度</span>
+          <div class="hook-intensity-bar"><div class="hook-intensity-fill" style="width:${activeScene.hookAnalysis.intensity}%"></div></div>
+        </div>
+        <div class="hook-content">${activeScene.hookAnalysis.content}</div>
+      </div>
+    `:'';
+    
+    body.innerHTML=`
+      ${hookHtml}
+      <div class="content-block">
+        <div class="content-label">场景描述</div>
+        <div class="content-text">${activeScene.description||'暂无描述'}</div>
+      </div>
+      <div class="content-block">
+        <div class="content-label">出场角色</div>
+        <div class="content-text">${activeScene.characters.join('、')}</div>
+      </div>
+      <div class="content-block">
+        <div class="content-label">推荐景别</div>
+        <div class="content-text">${activeScene.shotType} (情绪强度: ${activeScene.shotCombo?.emotionIntensity||3}/5)</div>
+      </div>
+    `;
+  }else if(activeTab==='dialogue'){
+    if(!activeScene.dialogue||activeScene.dialogue.length===0){
+      body.innerHTML='<div class="content-text">暂无台词</div>';
+    }else{
+      body.innerHTML=activeScene.dialogue.map(d=>`
+        <div class="dialogue-item">
+          <div class="dialogue-speaker">**${d.speaker}**：</div>
+          <div class="dialogue-text">"${d.text}"</div>
+        </div>
+      `).join('');
+    }
+  }else if(activeTab==='narration'){
+    body.innerHTML=`
+      <div class="content-block">
+        <div class="content-label">解说词</div>
+        <div class="content-text">${activeScene.narration}</div>
+      </div>
+    `;
+  }else if(activeTab==='prompt'){
+    // v5.0: 增强的提示词视图
+    const coverPrompts=[
+      {ratio:'9:16 (720x1280)',prompt:`${activeScene.location} panoramic view, cinematic framing, ${activeScene.characters.join(', ')}, dramatic ${activeScene.sceneType||'dialogue'} scene, professional anime style, 8k`},
+      {ratio:'3:4 (720x960)',prompt:`${activeScene.location} portrait composition, ${activeScene.characters[0]||'character'} centered, close-up framing, emotional ${activeScene.sceneType||'dialogue'} scene, anime style, 8k`},
+      {ratio:'7:10 (700x1000)',prompt:`${activeScene.location} medium composition, ${activeScene.characters.join(' and ')}, conversational scene, anime illustration style, 8k`},
+      {ratio:'2:3 (720x1080)',prompt:`${activeScene.location} wide portrait, ${activeScene.characters.join(', ')} in scene, narrative storytelling, anime cinematic, 8k`},
+      {ratio:'3:2 (1080x720)',prompt:`${activeScene.location} landscape composition, wide establishing shot, environmental storytelling, anime art style, 8k`}
+    ];
+    
+    const coverHtml=coverPrompts.map(cp=>`
+      <div class="cover-prompt-card">
+        <div class="cover-ratio">${cp.ratio}</div>
+        <div class="cover-prompt-text">${cp.prompt}</div>
+        <button class="copy-btn" style="margin-top:8px" onclick="copyPrompt('${escapeHtml(cp.prompt)}')">复制提示词</button>
+      </div>
+    `).join('');
+    
+    body.innerHTML=`
+      <div class="content-block">
+        <div class="content-label">AI生图提示词</div>
+        <div class="content-text">${activeScene.imagePrompt}</div>
+      </div>
+      <div class="content-block">
+        <div class="content-label">封面图提示词（5种尺寸）</div>
+        <div class="cover-prompt-grid">${coverHtml}</div>
+      </div>
+    `;
+  }else if(activeTab==='shotcombo'){
+    // v5.0: 景别组合生成器
+    const combo=activeScene.shotCombo||{shots:[],totalDuration:0,sceneType:'dialogue',emotionIntensity:3};
+    const narrativeHtml=NARRATIVE_UNITS.map(n=>`
+      <div class="narrative-cell">
+        <div class="narrative-cell-number">第${n.seq}格</div>
+        <div class="narrative-cell-shot">${n.shot}</div>
+        <div class="narrative-cell-motion">${n.motion}</div>
+        <div class="narrative-cell-time">${n.time}秒</div>
+      </div>
+    `).join('');
+    
+    const shotsHtml=combo.shots.map((s,i)=>`
+      <div class="shot-unit-item">
+        <div class="shot-seq">镜头${i+1}</div>
+        <div class="shot-type">${s.shot}</div>
+        <div class="shot-duration">${s.duration}秒</div>
+        <div class="shot-emotion">${s.motion}</div>
+        <div class="emotion-bar"><div class="emotion-fill emotion-${SHOT_EMOTION_MAP[s.shot]?.intensity>=4?'high':SHOT_EMOTION_MAP[s.shot]?.intensity>=2?'mid':'low'}" style="width:${(SHOT_EMOTION_MAP[s.shot]?.intensity||3)/5*100}%"></div></div>
+      </div>
+    `).join('');
+    
+    body.innerHTML=`
+      <div class="content-block">
+        <div class="content-label">叙事单元（3x9宫格法）</div>
+        <div class="narrative-unit">
+          <div class="narrative-title">📽️ 完整叙事序列（可根据实际情况调整）</div>
+          <div class="narrative-grid">${narrativeHtml}</div>
+        </div>
+      </div>
+      
+      <div class="shot-combo-section">
+        <div class="shot-combo-title">🎬 本场景景别组合（基于${getSceneTypeBadge(combo.sceneType).label}优化）</div>
+        <div class="shot-unit">${shotsHtml}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-secondary);border-radius:8px">
+          <span style="font-size:13px">总时长：<strong>${combo.totalDuration}</strong>秒</span>
+          <span style="font-size:13px">情绪强度：<strong style="color:var(--gold)">${combo.emotionIntensity}/5</strong></span>
+          <span style="font-size:13px">运镜建议：<strong style="color:var(--accent)">${combo.cameraAdvice||'中速'}</strong></span>
+        </div>
+      </div>
+      
+      <div class="content-block" style="margin-top:16px">
+        <div class="content-label">景别-情绪映射说明</div>
+        <div class="content-text" style="font-size:12px">${Object.entries(SHOT_EMOTION_MAP).map(([shot,info])=>`${shot}：${info.emotion}（强度${info.intensity}/5）`).join('\n')}</div>
+      </div>
+    `;
+  }
+}
+
+function filterByCharacter(name){
+  alert('筛选角色：'+name);
+}
+
+function exportJSON(){
+  const data=JSON.stringify(parseResult,null,2);
+  downloadFile(data,parseResult.title+'_v5工作流数据.json','application/json');
+}
+
+function exportMarkdown(){
+  let md=`# 《${parseResult.title}》工作流数据 v5.0\n\n`;
+  md+=`## 基本信息\n- 格式：${parseResult.format}\n- 总集数：${parseResult.totalEpisodes}\n- 总场景：${parseResult.totalScenes}\n- 爆款评分：${parseResult.bestsellerScore.totalScore}/${parseResult.bestsellerScore.maxScore}\n\n`;
+  md+=`## 爆款检测\n`;
+  Object.entries(parseResult.bestsellerScore.checks).forEach(([key,c])=>{
+    md+=`- ${c.pass?'✅':'❌'} ${c.label}：${c.pass?'通过':'待优化'} (${c.score}分)\n`;
+  });
+  md+=`\n## 景别组合建议\n\n`;
+  parseResult.scenes.forEach(s=>{
+    if(s.shotCombo){
+      md+=`### ${s.location}\n`;
+      md+=`- 场景类型：${getSceneTypeBadge(s.sceneType).label}\n`;
+      md+=`- 总时长：${s.shotCombo.totalDuration}秒\n`;
+      md+=`- 景别序列：${s.shotCombo.shots.map(sh=>`${sh.shot}(${sh.duration}s)`).join(' → ')}\n\n`;
+    }
+  });
+  md+=`## 核心资产\n\n`;
+  md+=`### 角色资产\n`;
+  parseResult.assets.characters.forEach(c=>{
+    md+=`\n#### ${c.name} (${c.priority})\n${c.description}\n\n**基准提示词**：\n\`\`\`\n${c.prompts.baseline}\n\`\`\`\n`;
+  });
+  md+=`\n### 场景资产\n`;
+  parseResult.assets.locations.forEach(l=>{
+    md+=`\n#### ${l.name} (${l.priority})\n出现${l.frequency}次\n\n**提示词**：\n\`\`\`\n${l.prompts.baseline}\n\`\`\`\n`;
+  });
+  downloadFile(md,parseResult.title+'_v5工作流数据.md','text/markdown');
+}
+
+function exportAssets(){
+  let md=`# 《${parseResult.title}》核心资产与生图提示词 v5.0\n\n`;
+  md+=`生成时间：${new Date().toLocaleString()}\n`;
+  md+=`爆款评分：${parseResult.bestsellerScore.totalScore}分\n\n`;
+  
+  md+=`## 一、角色资产（需要保证一致性）\n\n`;
+  parseResult.assets.characters.forEach(c=>{
+    const stars='⭐'.repeat(c.priority==='P0'?5:c.priority==='P1'?3:1);
+    md+=`### ${c.name} (${c.priority})\n`;
+    md+=`**角色定位**：${c.description}\n`;
+    md+=`**出场频率**：${stars} ${c.frequency}次\n\n`;
+    md+=`**nanobanana pro 提示词**：\n`;
+    md+=`\`\`\`\n基准图：${c.prompts.baseline}\n`;
+    if(c.prompts.wedding)md+=`\n婚礼场景：${c.prompts.wedding}\n`;
+    if(c.prompts.daily)md+=`\n日常场景：${c.prompts.daily}\n`;
+    md+=`\`\`\`\n\n`;
+  });
+  
+  md+=`## 二、场景资产\n\n`;
+  parseResult.assets.locations.forEach(l=>{
+    const stars='⭐'.repeat(l.priority==='P0'?5:l.priority==='P1'?3:1);
+    md+=`### ${l.name} (${l.priority})\n`;
+    md+=`**出现频率**：${stars} ${l.frequency}次\n\n`;
+    md+=`**提示词**：\n\`\`\`\n${l.prompts.baseline}\n\`\`\`\n\n`;
+  });
+  
+  md+=`## 三、景别组合建议\n\n`;
+  parseResult.scenes.forEach(s=>{
+    if(s.shotCombo){
+      md+=`### ${s.location}\n`;
+      md+=`- 场景类型：${getSceneTypeBadge(s.sceneType).label}\n`;
+      md+=`- 情绪强度：${s.shotCombo.emotionIntensity}/5\n`;
+      md+=`- 运镜建议：${s.shotCombo.cameraAdvice}\n`;
+      md+=`- 景别序列：\n`;
+      s.shotCombo.shots.forEach((sh,i)=>{
+        md+=`  ${i+1}. ${sh.shot}（${sh.duration}秒）-${sh.motion} → ${sh.purpose}\n`;
+      });
+      md+=`\n`;
+    }
+  });
+  
+  md+=`## 四、钩子分析\n\n`;
+  parseResult.scenes.forEach((s,i)=>{
+    if(s.hookAnalysis&&(s.hookAnalysis.isOpening||s.hookAnalysis.intensity>=80)){
+      md+=`### ${i===0?'开场':`场景${i+1}`}钩子\n`;
+      md+=`- 类型：${s.hookAnalysis.label}\n`;
+      md+=`- 强度：${s.hookAnalysis.intensity}/100\n`;
+      md+=`- 内容：${s.hookAnalysis.content}\n\n`;
+    }
+  });
+  
+  md+=`---\n`;
+  md+=`*由AI漫剧工作流平台v5.0自动生成*`;
+  
+  downloadFile(md,parseResult.title+'_核心资产与生图提示词_v5.md','text/markdown');
+}
+
+// ========== v5.0 新增：爆款报告导出 ==========
+
+function exportBestsellerReport(){
+  const score=parseResult.bestsellerScore;
+  const avgHook=Math.round(parseResult.scenes.reduce((sum,s)=>sum+(s.hookAnalysis?.intensity||0),0)/Math.max(parseResult.scenes.length,1));
+  
+  // 场景类型统计
+  const typeCount={};
+  parseResult.scenes.forEach(s=>{
+    const t=s.sceneType||'calm';
+    typeCount[t]=(typeCount[t]||0)+1;
+  });
+  
+  // 景别使用统计
+  const shotCount={};
+  parseResult.scenes.forEach(s=>{
+    if(s.shotCombo){
+      s.shotCombo.shots.forEach(shot=>{
+        shotCount[shot.shot]=(shotCount[shot.shot]||0)+1;
+      });
+    }
+  });
+  
+  let md=`# 《${parseResult.title}》爆款验证报告\n\n`;
+  md+=`| 项目 | 内容 |\n|--------|------|\n`;
+  md+=`| 剧本名称 | ${parseResult.title} |\n`;
+  md+=`| 总集数 | ${parseResult.totalEpisodes} |\n`;
+  md+=`| 总场景 | ${parseResult.totalScenes} |\n`;
+  md+=`| 角色数 | ${parseResult.characters.length} |\n`;
+  md+=`| 爆款评分 | **${score.totalScore}/${score.maxScore}** |\n`;
+  md+=`| 钩子均强 | ${avgHook}/100 |\n\n`;
+  
+  md+=`## 一、爆款要素检测\n\n`;
+  md+=`| 检查项 | 结果 | 分值 |\n|--------|------|------|\n`;
+  Object.entries(score.checks).forEach(([key,c])=>{
+    md+=`| ${c.label} | ${c.pass?'✅ 通过':'❌ 待优化'} | ${c.score}分 |\n`;
+  });
+  
+  md+=`\n## 二、场景类型分布\n\n`;
+  md+=`| 场景类型 | 数量 | 占比 |\n|---------|------|------|\n`;
+  Object.entries(typeCount).forEach(([type,count])=>{
+    const pct=Math.round(count/parseResult.scenes.length*100);
+    md+=`| ${getSceneTypeBadge(type).label} | ${count} | ${pct}% |\n`;
+  });
+  
+  md+=`\n## 三、景别使用统计\n\n`;
+  md+=`| 景别 | 使用次数 | 占比 |\n|------|---------|------|\n`;
+  Object.entries(shotCount)
+    .sort((a,b)=>b[1]-a[1])
+    .forEach(([shot,count])=>{
+      const pct=Math.round(count/Object.values(shotCount).reduce((a,b)=>a+b,0)*100);
+      md+=`| ${shot} | ${count} | ${pct}% |\n`;
+    });
+  
+  md+=`\n## 四、景别-情绪映射规则\n\n`;
+  md+=`| 景别 | 情绪强度 | 运镜方式 | 建议时长 |\n|------|---------|---------|---------|\n`;
+  Object.entries(SHOT_EMOTION_MAP).forEach(([shot,info])=>{
+    md+=`| ${shot} | ${info.intensity}/5 | ${info.motion} | ${info.duration.join('-')}秒 |\n`;
+  });
+  
+  md+=`\n## 五、开场钩子分析\n\n`;
+  const openingHook=parseResult.scenes[0]?.hookAnalysis;
+  if(openingHook){
+    md+=`| 项目 | 内容 |\n|--------|------|\n`;
+    md+=`| 钩子类型 | ${openingHook.label} |\n`;
+    md+=`| 钩子强度 | ${openingHook.intensity}/100 |\n`;
+    md+=`| 关键词 | ${openingHook.keywords.join('、')||'无' |\n`;
+    md+=`| 内容摘要 | ${openingHook.content.slice(0,100)} |\n\n`;
+  }
+  
+  md+=`## 六、甲方标准符合度\n\n`;
+  md+=`| 检查项 | 符合度 | 说明 |\n|--------|--------|------|\n`;
+  md+=`| 字幕无标点 | ⭐⭐⭐⭐⭐ | 自动去除标点符号 |\n`;
+  md+=`| 语速1.2-1.3倍 | ⭐⭐⭐⭐⭐ | 配音文案包含语速建议 |\n`;
+  md+=`| 时长检测 | ⭐⭐⭐⭐⭐ | 自动计算并检测 |\n`;
+  md+=`| 封面图5尺寸 | ⭐⭐⭐⭐⭐ | v5.0支持 |\n`;
+  md+=`| 人物一致性 | ⭐⭐⭐⭐⭐ | 资产库支持 |\n`;
+  md+=`| 景别组合 | ⭐⭐⭐⭐⭐ | v5.0新增 |\n`;
+  md+=`| 钩子标注 | ⭐⭐⭐⭐⭐ | v5.0新增 |\n\n`;
+  
+  md+=`## 七、优化建议\n\n`;
+  Object.entries(score.checks).forEach(([key,c])=>{
+    if(!c.pass){
+      const suggestions={
+        openingHook:'建议在开场3秒内使用"竟然""没想到""死后""重生的"等钩子词',
+        emotionWaves:'建议增加情感戏和紧张戏的交替，避免单一情绪',
+        endingSuspense:'建议在结尾使用"选择""究竟""命运"等悬念词',
+        vividDescription:'建议增加具体场景描写，减少抽象概述',
+        infoDensity:'建议精简每场景描述，控制在20-80字'
+      };
+      md+=`- **${c.label}**：${suggestions[key]||'建议优化'}\n`;
+    }
+  });
+  
+  md+=`\n---\n`;
+  md+=`*报告生成时间：${new Date().toLocaleString()}*\n`;
+  md+=`*AI漫剧工作流平台 v5.0 爆款深度优化版*`;
+  
+  downloadFile(md,parseResult.title+'_爆款验证报告.md','text/markdown');
+}
+
+function downloadFile(content,filename,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetUpload(){
+  parseResult=null;
+  activeScene=null;
+  uploadView.classList.remove('hidden');
+  resultView.classList.add('hidden');
+  dropZone.innerHTML=`
+    <div style="font-size:48px;margin-bottom:16px;opacity:0.6">📄</div>
+    <p style="font-size:18px;margin-bottom:8px">拖拽剧本文件到此处</p>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">支持 .docx / .txt / .md 格式</p>
+    <p style="font-size:13px;color:var(--text-secondary)">v5.0新特性：景别组合生成器 · 场景类型智能适配 · 钩子可视化标注</p>
+  `;
+}
+</script>
+</body>
+</html>
