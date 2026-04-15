@@ -1,9 +1,10 @@
 services:
   - type: web
-    name: manhua-editor
+    name: manhua-workflow-1
     env: python
     region: oregon
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
     healthCheckPath: /health
+    branch: main
