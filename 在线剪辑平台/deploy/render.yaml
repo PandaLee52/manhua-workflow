@@ -1,0 +1,40 @@
+# Render Blueprint - 一键部署配置
+# 使用方法: render blueprint render.yaml
+
+services:
+  # Web 应用服务
+  - type: web
+    name: video-platform
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    rootDir: ./
+    plan: free
+    region: oregon
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: SECRET_KEY
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+  # PostgreSQL 数据库 (可选)
+  # 取消注释以启用数据库
+  # - type: postgres
+  #   name: video-db
+  #   plan: free
+  #   databaseName: video_platform
+  #   ipAllowList: []
+  #   envVars:
+  #     - fromService:
+  #         type: web
+  #         name: video-platform
+  #         envVarKey: DATABASE_URL
+
+# 数据库配置 (如果有)
+# databases:
+#   - name: video-db
+#     databaseName: video_platform
+#     plan: free

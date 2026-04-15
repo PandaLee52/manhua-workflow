@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI智能剪辑工具</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 30px; font-size: 28px; }
+    
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+    }
+    
+    .card h2 { margin-bottom: 15px; font-size: 18px; color: #667eea; }
+    
+    .upload-zone {
+      border: 2px dashed rgba(255,255,255,0.3);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .upload-zone:hover { border-color: #667eea; background: rgba(102,126,234,0.1); }
+    
+    .file-list { margin-top: 15px; }
+    .file-item {
+      background: rgba(0,0,0,0.2);
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 15px;
+      color: #fff;
+      font-size: 14px;
+      resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: #667eea; }
+    
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+      transition: transform 0.3s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .result {
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    .result-item {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .result-item:last-child { border-bottom: none; }
+    
+    .templates { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .template-btn {
+      background: rgba(102,126,234,0.2);
+      border: 1px solid rgba(102,126,234,0.5);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .template-btn:hover { background: #667eea; }
+    
+    .progress {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 15px 0;
+      display: none;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+    }
+    
+    .download-link {
+      display: inline-block;
+      background: #67C23A;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 AI智能剪辑工具</h1>
+    
+    <!-- 上传视频 -->
+    <div class="card">
+      <h2>📹 上传视频片段</h2>
+      <div class="upload-zone" onclick="document.getElementById('videoInput').click()">
+        <p>点击或拖拽视频文件到此处</p>
+        <p style="color: #888; font-size: 13px; margin-top: 10px;">支持 MP4、MOV、WebM 格式</p>
+        <input type="file" id="videoInput" multiple accept="video/*" style="display:none" onchange="handleVideos(this.files)">
+      </div>
+      <div id="videoList" class="file-list"></div>
+      <div class="progress" id="mergeProgress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <button class="btn" onclick="mergeVideos()" id="mergeBtn" disabled>拼接视频</button>
+      <div id="downloadArea"></div>
+    </div>
+    
+    <!-- 剪辑要求 -->
+    <div class="card">
+      <h2>🎬 剪辑要求（AI理解）</h2>
+      <div class="templates">
+        <button class="template-btn" onclick="setTemplate('开头震撼快节奏，中间温馨慢节奏，结尾悬疑')">震撼开头+悬疑结尾</button>
+        <button class="template-btn" onclick="setTemplate('全程快节奏，镜头快速切换，紧凑不拖沓')">全程快节奏</button>
+        <button class="template-btn" onclick="setTemplate('开头平静舒缓，中间逐渐紧张，结尾高潮震撼')">情绪渐变</button>
+      </div>
+      <textarea id="requirements" placeholder="输入剪辑要求，例如：&#10;开头震撼快节奏，镜头快速切换&#10;中间温馨慢节奏，BGM柔和&#10;结尾悬疑感，镜头停留时间长"></textarea>
+      <button class="btn" onclick="parseRequirements()">解析要求</button>
+      <div id="parseResult" class="result" style="display:none;"></div>
+    </div>
+    
+    <!-- 输出报告 -->
+    <div class="card">
+      <h2>📋 剪辑方案</h2>
+      <div id="planOutput" class="result">
+        <p style="color: #888;">上传视频并输入剪辑要求后，AI将生成详细剪辑方案...</p>
+      </div>
+      <button class="btn" onclick="exportPlan()">导出方案</button>
+    </div>
+  </div>
+  
+  <script>
+    // 状态
+    let state = {
+      videos: [],
+      videoFiles: []
+    };
+    
+    // 模板
+    function setTemplate(text) {
+      document.getElementById('requirements').value = text;
+      parseRequirements();
+    }
+    
+    // 处理视频上传
+    function handleVideos(files) {
+      state.videoFiles = Array.from(files);
+      state.videos = state.videoFiles.map(f => f.name);
+      
+      const list = document.getElementById('videoList');
+      list.innerHTML = state.videos.map((v, i) => `
+        <div class="file-item">
+          <span>📹 ${v}</span>
+          <span style="color: #67C23A;">✓ ${(state.videoFiles[i].size / 1024 / 1024).toFixed(1)} MB</span>
+        </div>
+      `).join('');
+      
+      document.getElementById('mergeBtn').disabled = state.videos.length < 2;
+      updatePlan();
+    }
+    
+    // 解析剪辑要求
+    function parseRequirements() {
+      const text = document.getElementById('requirements').value;
+      if (!text.trim()) {
+        document.getElementById('parseResult').style.display = 'none';
+        return;
+      }
+      
+      const segments = text.split(/[,，。；]/).filter(s => s.trim());
+      const result = [];
+      
+      const positions = {'开头': 'start', '中间': 'middle', '结尾': 'end', '高潮': 'climax'};
+      const moods = {'震撼': 'epic', '紧张': 'tense', '悬疑': 'suspense', '温馨': 'warm', '欢快': 'happy', '悲伤': 'sad'};
+      const styles = {'快': 'fast', '慢': 'slow', '快节奏': 'fast', '慢节奏': 'slow'};
+      
+      segments.forEach(seg => {
+        let item = { text: seg.trim(), position: '整体', mood: '', style: '' };
+        
+        for (let [k, v] of Object.entries(positions)) {
+          if (seg.includes(k)) item.position = k;
+        }
+        for (let [k, v] of Object.entries(moods)) {
+          if (seg.includes(k)) item.mood = k;
+        }
+        for (let [k, v] of Object.entries(styles)) {
+          if (seg.includes(k)) item.style = k + '节奏';
+        }
+        
+        result.push(`【${item.position}】${item.style} ${item.mood}`.trim());
+      });
+      
+      const resultDiv = document.getElementById('parseResult');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div style="color: #667eea; margin-bottom: 10px;">🧠 AI理解结果：</div>' +
+        result.map(r => `<div class="result-item">${r}</div>`).join('');
+      
+      updatePlan();
+    }
+    
+    // 更新剪辑方案
+    function updatePlan() {
+      const videos = state.videos;
+      const requirements = document.getElementById('requirements').value;
+      
+      if (videos.length === 0 && !requirements) return;
+      
+      let plan = '';
+      
+      if (videos.length > 0) {
+        plan += `<h3 style="margin-bottom: 10px;">视频素材</h3>`;
+        plan += `<p>共 ${videos.length} 个视频片段待拼接</p>`;
+        plan += `<p style="color: #888; font-size: 13px;">${videos.join(' → ')}</p>`;
+      }
+      
+      if (requirements) {
+        plan += `<h3 style="margin: 15px 0 10px;">剪辑指令</h3>`;
+        plan += document.getElementById('parseResult').innerHTML;
+      }
+      
+      if (videos.length >= 2) {
+        plan += `<h3 style="margin: 15px 0 10px;">处理步骤</h3>`;
+        plan += `<ol style="color: #b0b0b0; font-size: 14px;">
+          <li>按顺序拼接 ${videos.length} 个视频片段</li>
+          <li>根据剪辑要求调整各段节奏</li>
+          <li>匹配对应情绪的BGM</li>
+          <li>生成最终成品视频</li>
+        </ol>`;
+      }
+      
+      document.getElementById('planOutput').innerHTML = plan;
+    }
+    
+    // 拼接视频（使用浏览器API）
+    async function mergeVideos() {
+      if (state.videoFiles.length < 2) {
+        alert('请至少上传2个视频');
+        return;
+      }
+      
+      const progressDiv = document.getElementById('mergeProgress');
+      const progressBar = document.getElementById('progressBar');
+      progressDiv.style.display = 'block';
+      
+      try {
+        // 创建视频列表文件内容
+        let fileList = state.videoFiles.map((f, i) => `file 'video_${i}.${f.name.split('.').pop()}'`).join('\n');
+        
+        // 显示进度
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 5;
+          if (progress > 90) progress = 90;
+          progressBar.style.width = progress + '%';
+        }, 100);
+        
+        // 由于浏览器限制，无法直接使用FFmpeg
+        // 这里生成拼接命令供用户在本地执行
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        
+        const downloadArea = document.getElementById('downloadArea');
+        downloadArea.innerHTML = `
+          <div class="result" style="margin-top: 15px;">
+            <h3 style="color: #67C23A; margin-bottom: 10px;">✓ 视频已准备</h3>
+            <p style="margin-bottom: 10px;">共 ${state.videoFiles.length} 个视频片段</p>
+            <p style="font-size: 13px; color: #888; margin-bottom: 15px;">
+              由于浏览器安全限制，请在本地使用FFmpeg拼接：
+            </p>
+            <code style="background: rgba(0,0,0,0.3); padding: 10px; display: block; border-radius: 4px; font-size: 12px; white-space: pre-wrap;">
+# 创建文件列表 videos.txt
+${state.videoFiles.map((f, i) => `file '${f.name}'`).join('\n')}
+
+# 执行拼接命令
+ffmpeg -f concat -safe 0 -i videos.txt -c copy output.mp4
+            </code>
+            <button class="btn" onclick="copyCommand()" style="margin-top: 10px;">复制命令</button>
+          </div>
+        `;
+        
+      } catch (err) {
+        alert('处理失败: ' + err.message);
+      }
+    }
+    
+    // 复制命令
+    function copyCommand() {
+      const cmd = `# 创建文件列表
+${state.videoFiles.map(f => `file '${f.name}'`).join('\n')}
+
+# 保存为 videos.txt，然后执行：
+ffmpeg -f concat -safe 0 -i videos.txt -c copy output.mp4`;
+      
+      navigator.clipboard.writeText(cmd).then(() => {
+        alert('命令已复制到剪贴板！');
+      });
+    }
+    
+    // 导出方案
+    function exportPlan() {
+      const plan = document.getElementById('planOutput').innerText;
+      const blob = new Blob([plan], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '剪辑方案_' + new Date().toISOString().slice(0,10) + '.txt';
+      a.click();
+      
+      URL.revokeObjectURL(url);
+    }
+    
+    // 监听输入
+    document.getElementById('requirements').addEventListener('input', parseRequirements);
+  </script>
+</body>
+</html>

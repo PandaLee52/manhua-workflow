@@ -1,0 +1,15 @@
+# Railway 部署配置文件
+# 用于 nixpacks 配置 (如果不用 Dockerfile)
+
+[nixpacks]
+PHASE_BUILD = """
+pip install -r requirements.txt
+"""
+
+PHASE_DEPLOY = """
+gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 app:app
+"""
+
+[env]
+FLASK_ENV = "production"
+PYTHONUNBUFFERED = "1"
