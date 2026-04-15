@@ -1,0 +1,38 @@
+{
+  "episode": "示例 - 第1集",
+  "total_duration": 20,
+  "shots": [
+    {
+      "id": 1,
+      "file": "test_video_1.mp4",
+      "duration": 5,
+      "scene": "开场 - 悬疑氛围",
+      "emotion": "悬疑",
+      "dialogue": "他没想到，事情会变成这样..."
+    },
+    {
+      "id": 2,
+      "file": "test_video_2.mp4",
+      "duration": 5,
+      "scene": "回忆 - 震惊时刻",
+      "emotion": "震惊",
+      "dialogue": "三年前的那个夜晚，改变了一切。"
+    },
+    {
+      "id": 3,
+      "file": "test_video_3.mp4",
+      "duration": 5,
+      "scene": "转折 - 情绪爆发",
+      "emotion": "愤怒",
+      "dialogue": "她竟然一直都在欺骗他！"
+    },
+    {
+      "id": 4,
+      "file": "test_video_4.mp4",
+      "duration": 5,
+      "scene": "悬念结尾",
+      "emotion": "紧张",
+      "dialogue": "现在，他只有一个选择..."
+    }
+  ]
+}
