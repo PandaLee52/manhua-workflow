@@ -2293,6 +2293,236 @@ def api_detect_all():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================
+# FFmpeg免费去水印接口（无需OpenCV）
+# ============================================
+@app.route('/remove-watermark-ffmpeg', methods=['POST'])
+def remove_watermark_ffmpeg():
+    """
+    使用ffmpeg delogo滤镜去除水印（免费方案，无需OpenCV）
+    
+    请求参数：
+    {
+        "video_id": "xxx",  // 已上传视频ID
+        "regions": [         // 水印区域列表
+            {"x": 10, "y": 10, "width": 100, "height": 50},
+            {"x": 500, "y": 10, "width": 100, "height": 50}
+        ]
+    }
+    
+    使用ffmpeg delogo滤镜自动用周围像素修复水印区域
+    
+    返回：
+    {
+        "success": true,
+        "video_id": "新视频ID",
+        "video_url": "/video/新视频ID",
+        "download_url": "/download/新视频ID.mp4"
+    }
+    """
+    import subprocess
+    import time
+    import uuid
+    
+    ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+    UPLOAD_FOLDER = '/tmp/video_uploads'
+    PROCESSED_FOLDER = '/tmp/video_processed'
+    
+    try:
+        data = request.get_json()
+        video_id = data.get('video_id')
+        regions = data.get('regions', [])
+        
+        if not video_id:
+            return jsonify({'success': False, 'error': '缺少video_id参数'}), 400
+        
+        if not regions:
+            return jsonify({'success': False, 'error': '缺少regions参数（水印区域坐标）'}), 400
+        
+        # 找到视频文件
+        input_path = None
+        file_ext = 'mp4'
+        for ext in ALLOWED_VIDEO_EXTENSIONS:
+            path = os.path.join(UPLOAD_FOLDER, f"{video_id}.{ext}")
+            if os.path.exists(path):
+                input_path = path
+                file_ext = ext
+                break
+        
+        if not input_path:
+            # 尝试从PROCESSED_FOLDER查找
+            for ext in ALLOWED_VIDEO_EXTENSIONS:
+                path = os.path.join(PROCESSED_FOLDER, f"{video_id}.{ext}")
+                if os.path.exists(path):
+                    input_path = path
+                    file_ext = ext
+                    break
+        
+        if not input_path:
+            return jsonify({'success': False, 'error': f'找不到视频文件: {video_id}'}), 404
+        
+        # 生成输出视频ID
+        output_id = f"{video_id}_delogo_{int(time.time())}"
+        output_path = os.path.join(PROCESSED_FOLDER, f"{output_id}.{file_ext}")
+        
+        # 构建delogo滤镜链
+        delogo_filters = []
+        for region in regions:
+            x = region.get('x', 0)
+            y = region.get('y', 0)
+            w = region.get('width', 100)
+            h = region.get('height', 50)
+            delogo_filters.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
+        
+        # 组合多个delogo滤镜
+        vf_string = ','.join(delogo_filters) if len(delogo_filters) > 1 else delogo_filters[0]
+        
+        print(f"[FFmpeg Delogo] 输入: {input_path}")
+        print(f"[FFmpeg Delogo] 输出: {output_path}")
+        print(f"[FFmpeg Delogo] 滤镜: {vf_string}")
+        
+        # 执行ffmpeg命令
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', input_path,
+            '-vf', vf_string,
+            '-c:a', 'copy',
+            '-crf', '18',
+            '-preset', 'fast',
+            output_path
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        
+        if result.returncode != 0:
+            print(f"[FFmpeg Delogo] 错误: {result.stderr}")
+            return jsonify({
+                'success': False,
+                'error': f'FFmpeg执行失败: {result.stderr}'
+            }), 500
+        
+        # 检查输出文件
+        if not os.path.exists(output_path):
+            return jsonify({'success': False, 'error': '处理后视频文件未生成'}), 500
+        
+        output_size = os.path.getsize(output_path)
+        
+        return jsonify({
+            'success': True,
+            'video_id': output_id,
+            'video_url': f'/video/{output_id}',
+            'download_url': f'/download/{output_id}.{file_ext}',
+            'regions_applied': len(regions),
+            'filter': vf_string,
+            'size': output_size,
+            'message': '使用ffmpeg delogo滤镜成功去除水印'
+        })
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': '处理超时（超过10分钟）'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/remove-watermark-ffmpeg-preview', methods=['POST'])
+def remove_watermark_ffmpeg_preview():
+    """
+    FFmpeg去水印预览接口 - 先处理前10秒视频测试效果
+    """
+    import subprocess
+    import time
+    
+    ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+    UPLOAD_FOLDER = '/tmp/video_uploads'
+    PROCESSED_FOLDER = '/tmp/video_processed'
+    TEMP_FOLDER = '/tmp/temp'
+    
+    try:
+        data = request.get_json()
+        video_id = data.get('video_id')
+        regions = data.get('regions', [])
+        
+        if not video_id:
+            return jsonify({'success': False, 'error': '缺少video_id参数'}), 400
+        
+        if not regions:
+            return jsonify({'success': False, 'error': '缺少regions参数'}), 400
+        
+        # 找到视频文件
+        input_path = None
+        file_ext = 'mp4'
+        for ext in ALLOWED_VIDEO_EXTENSIONS:
+            path = os.path.join(UPLOAD_FOLDER, f"{video_id}.{ext}")
+            if os.path.exists(path):
+                input_path = path
+                file_ext = ext
+                break
+        
+        if not input_path:
+            for ext in ALLOWED_VIDEO_EXTENSIONS:
+                path = os.path.join(PROCESSED_FOLDER, f"{video_id}.{ext}")
+                if os.path.exists(path):
+                    input_path = path
+                    file_ext = ext
+                    break
+        
+        if not input_path:
+            return jsonify({'success': False, 'error': f'找不到视频文件: {video_id}'}), 404
+        
+        # 生成预览视频ID
+        preview_id = f"{video_id}_preview_{int(time.time())}"
+        output_path = os.path.join(TEMP_FOLDER, f"{preview_id}.{file_ext}")
+        
+        # 构建delogo滤镜链
+        delogo_filters = []
+        for region in regions:
+            x = region.get('x', 0)
+            y = region.get('y', 0)
+            w = region.get('width', 100)
+            h = region.get('height', 50)
+            delogo_filters.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
+        
+        vf_string = ','.join(delogo_filters) if len(delogo_filters) > 1 else delogo_filters[0]
+        
+        # 只处理前10秒 (-t 10) 用于预览
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', input_path,
+            '-ss', '0',
+            '-t', '10',
+            '-vf', vf_string,
+            '-c:a', 'copy',
+            '-crf', '23',
+            '-preset', 'fast',
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': f'预览生成失败: {result.stderr}'}), 500
+        
+        if not os.path.exists(output_path):
+            return jsonify({'success': False, 'error': '预览文件未生成'}), 500
+        
+        return jsonify({
+            'success': True,
+            'preview_id': preview_id,
+            'preview_url': f'/download/{preview_id}.{file_ext}',
+            'message': '预览生成成功，请下载查看效果后再决定是否处理完整视频'
+        })
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': '预览处理超时'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
