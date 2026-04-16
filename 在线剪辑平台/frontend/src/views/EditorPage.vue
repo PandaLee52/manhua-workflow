@@ -97,7 +97,7 @@
                     <div class="progress-handle" :style="{ left: progressPercent + '%' }"></div>
                   </div>
                 </div>
-                <span class="time-display">{{ formatTime(duration) }}</span>
+                <span class="time-display">{{ formatTime(videoDuration) }}</span>
               </div>
               <div class="control-right">
                 <el-button circle size="small" @click="toggleMute">
@@ -406,6 +406,15 @@ const store = useProjectStore()
 // 响应式数据
 const activeTab = ref('bgm')
 const previewQuality = ref('1080p')
+
+// 视频预览相关
+const videoRef = ref(null)
+const videoUrl = ref('')
+const videoPoster = ref('')
+const isPlaying = ref(false)
+const isMuted = ref(false)
+const volume = ref(1)
+const videoDuration = ref(0)
 const bgmSearch = ref('')
 const bgmCategory = ref('all')
 const bgmVolume = ref(80)
@@ -526,7 +535,6 @@ const estimatedDuration = computed(() => {
 
 // 时间轴相关状态变量
 const timelineScale = ref(50) // 像素/秒
-const currentTime = ref(0)
 
 // 时间轴计算属性
 const totalDuration = computed(() => 
@@ -567,6 +575,56 @@ const formatTime = (seconds) => {
   }
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
+
+// 视频预览方法
+const onLoadedMetadata = () => {
+  if (videoRef.value) {
+    videoDuration.value = videoRef.value.duration
+  }
+}
+
+const onTimeUpdate = () => {
+  if (videoRef.value) {
+    // 使用时间轴的 currentTime，保持同步
+    // currentTime 已在模板中通过 videoRef 绑定
+  }
+}
+
+const togglePlay = () => {
+  if (!videoRef.value) return
+  if (isPlaying.value) {
+    videoRef.value.pause()
+  } else {
+    videoRef.value.play()
+  }
+}
+
+const seekProgress = (event) => {
+  if (!videoRef.value || videoDuration.value === 0) return
+  const rect = event.currentTarget.getBoundingClientRect()
+  const percent = (event.clientX - rect.left) / rect.width
+  videoRef.value.currentTime = percent * videoDuration.value
+}
+
+const toggleMute = () => {
+  if (!videoRef.value) return
+  isMuted.value = !isMuted.value
+  videoRef.value.muted = isMuted.value
+}
+
+const toggleFullscreen = () => {
+  if (!videoRef.value) return
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else {
+    videoRef.value.requestFullscreen()
+  }
+}
+
+const progressPercent = computed(() => {
+  if (videoDuration.value === 0) return 0
+  return (currentTime.value / videoDuration.value) * 100
+})
 
 // 保留旧的兼容方法
 const clipWidth = computed(() => 100)
@@ -937,31 +995,6 @@ onMounted(() => {
     cursor: pointer;
     transition: all 0.2s;
     
-
-  }
-  
-  .playhead {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: #ff4444;
-    z-index: 10;
-    pointer-events: none;
-    
-    &::before {
-      content: '';
-      position: absolute;
-      top: -4px;
-      left: -5px;
-      width: 0;
-      height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 8px solid #ff4444;
-    }
-  }
-    
     &:hover {
       filter: brightness(1.1);
       transform: scaleY(1.05);
@@ -985,7 +1018,55 @@ onMounted(() => {
     }
     
     &.audio-clip {
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      width: 100%;
+      left: 0;
+      top: 0;
+      height: 100%;
+    }
+  }
+  
+  .playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ff4444;
+    z-index: 10;
+    pointer-events: none;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -5px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #ff4444;
+    }
+  }
+  
+  playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ff4444;
+    z-index: 10;
+    pointer-events: none;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -5px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #ff4444;
     }
   }
   
