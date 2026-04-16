@@ -56,7 +56,21 @@
             </div>
           </div>
           <div class="preview-screen">
-            <div class="preview-placeholder">
+            <!-- 视频元素 -->
+            <video
+              v-if="videoUrl"
+              ref="videoRef"
+              :src="videoUrl"
+              :poster="videoPoster"
+              @loadedmetadata="onLoadedMetadata"
+              @timeupdate="onTimeUpdate"
+              @play="isPlaying = true"
+              @pause="isPlaying = false"
+              @ended="isPlaying = false"
+              class="preview-video"
+            ></video>
+            <!-- 占位符 -->
+            <div v-else class="preview-placeholder">
               <el-icon :size="64"><VideoPlay /></el-icon>
               <p>视频预览区域</p>
               <p class="preview-hint">点击播放按钮预览编辑效果</p>
@@ -64,31 +78,33 @@
             <!-- 视频控制栏 -->
             <div class="preview-controls">
               <div class="control-left">
-                <el-button circle size="small">
+                <el-button circle size="small" @click="videoRef && (videoRef.currentTime -= 5)">
                   <el-icon><RefreshLeft /></el-icon>
                 </el-button>
-                <el-button circle size="small" type="primary">
-                  <el-icon><VideoPlay /></el-icon>
+                <el-button circle size="small" type="primary" @click="togglePlay">
+                  <el-icon v-if="!isPlaying"><VideoPlay /></el-icon>
+                  <el-icon v-else><VideoPause /></el-icon>
                 </el-button>
-                <el-button circle size="small">
+                <el-button circle size="small" @click="videoRef && (videoRef.currentTime += 5)">
                   <el-icon><RefreshRight /></el-icon>
                 </el-button>
               </div>
               <div class="control-center">
-                <span class="time-display">00:00:00</span>
-                <div class="progress-slider">
+                <span class="time-display">{{ formatTime(currentTime) }}</span>
+                <div class="progress-slider" @click="seekProgress">
                   <div class="progress-track">
-                    <div class="progress-fill" style="width: 30%;"></div>
-                    <div class="progress-handle" style="left: 30%;"></div>
+                    <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+                    <div class="progress-handle" :style="{ left: progressPercent + '%' }"></div>
                   </div>
                 </div>
-                <span class="time-display">00:05:00</span>
+                <span class="time-display">{{ formatTime(duration) }}</span>
               </div>
               <div class="control-right">
-                <el-button circle size="small">
-                  <el-icon><Mute /></el-icon>
+                <el-button circle size="small" @click="toggleMute">
+                  <el-icon v-if="isMuted"><Mute /></el-icon>
+                  <el-icon v-else><Volume /></el-icon>
                 </el-button>
-                <el-button circle size="small">
+                <el-button circle size="small" @click="toggleFullscreen">
                   <el-icon><FullScreen /></el-icon>
                 </el-button>
               </div>
@@ -115,31 +131,35 @@
             </div>
           </div>
           <div class="timeline-content">
-            <div class="timeline-ruler">
-              <span v-for="i in 10" :key="i" class="ruler-mark">{{ (i - 1) * 10 }}s</span>
+            <div class="timeline-ruler" :style="{ width: timelineWidth + 'px' }">
+              <span v-for="mark in rulerMarks" :key="mark.label" class="ruler-mark" :style="{ position: 'absolute', left: mark.position + 'px' }">
+                {{ mark.label }}
+              </span>
             </div>
             <div class="timeline-tracks">
               <!-- 视频轨道 -->
               <div class="track video-track">
                 <div class="track-label">视频</div>
-                <div class="track-content">
+                <div class="track-content" :style="{ width: timelineWidth + 'px' }">
                   <div
                     v-for="(clip, index) in videoClips"
                     :key="clip.id"
                     class="timeline-clip"
-                    :style="{ width: clipWidth + 'px', left: clipOffset(index) + 'px' }"
+                    :style="{ width: getClipWidth(clip) + 'px', left: getClipOffset(index) + 'px' }"
                   >
                     <div class="clip-content">
                       <span class="clip-name">{{ clip.name }}</span>
                     </div>
                   </div>
+                  <!-- 播放头 -->
+                  <div class="playhead" :style="{ left: playheadPosition + 'px' }"></div>
                 </div>
               </div>
               <!-- 音频轨道 -->
               <div class="track audio-track">
                 <div class="track-label">音频</div>
                 <div class="track-content">
-                  <div class="timeline-clip audio-clip" :style="{ width: '200px', left: '0px' }">
+                  <div class="timeline-clip audio-clip" :style="{ width: timelineWidth + 'px', left: '0px' }">
                     <div class="clip-content">
                       <el-icon><Music /></el-icon>
                       <span class="clip-name">{{ selectedBgm?.name || '背景音乐' }}</span>
@@ -504,8 +524,52 @@ const estimatedDuration = computed(() => {
   return `${mins}:${String(secs).padStart(2, '0')}`
 })
 
-// 时间轴相关
-const clipWidth = computed(() => 100) // 每个片段显示宽度
+// 时间轴相关状态变量
+const timelineScale = ref(50) // 像素/秒
+const currentTime = ref(0)
+
+// 时间轴计算属性
+const totalDuration = computed(() => 
+  videoClips.value.reduce((sum, clip) => sum + (clip.duration || 15), 0)
+)
+const timelineWidth = computed(() => totalDuration.value * timelineScale.value)
+
+// 时间刻度尺标记
+const rulerMarks = computed(() => {
+  const marks = []
+  const interval = totalDuration.value > 300 ? 30 : totalDuration.value > 120 ? 15 : 5
+  for (let i = 0; i <= totalDuration.value; i += interval) {
+    marks.push({ position: i * timelineScale.value, label: formatTime(i) })
+  }
+  return marks
+})
+
+// 播放头位置
+const playheadPosition = computed(() => currentTime.value * timelineScale.value)
+
+// 片段宽度和偏移计算
+const getClipWidth = (clip) => (clip.duration || 15) * timelineScale.value
+const getClipOffset = (index) => {
+  let offset = 0
+  for (let i = 0; i < index; i++) {
+    offset += getClipWidth(videoClips.value[i])
+  }
+  return offset
+}
+
+// 格式化时间（秒转为 mm:ss 或 hh:mm:ss）
+const formatTime = (seconds) => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+// 保留旧的兼容方法
+const clipWidth = computed(() => 100)
 
 const clipOffset = (index) => {
   return index * (clipWidth.value + 10)
@@ -546,6 +610,11 @@ onMounted(() => {
   // 初始化时从 store 恢复配置
   if (store.selectedBgm) {
     selectedBgm.value = store.selectedBgm
+  }
+  
+  // 如果有视频URL，设置预览视频
+  if (store.videoUrl) {
+    videoUrl.value = store.videoUrl
   }
   bgmVolume.value = store.bgmVolume || 80
   bgmFadeIn.value = store.bgmFadeIn || 2
@@ -792,15 +861,29 @@ onMounted(() => {
   }
   
   .timeline-ruler {
-    display: flex;
-    padding-left: 60px;
+    display: block;
+    position: relative;
+    padding-left: 0;
     margin-bottom: 12px;
+    margin-left: 60px;
+    height: 20px;
     
     .ruler-mark {
-      flex: 1;
+      position: absolute;
       font-size: 11px;
       color: #666;
-      text-align: center;
+      text-align: left;
+      transform: translateX(-50%);
+      
+      &::before {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        width: 1px;
+        height: 6px;
+        background: #444;
+      }
     }
   }
   
@@ -853,6 +936,31 @@ onMounted(() => {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    
+
+  }
+  
+  .playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ff4444;
+    z-index: 10;
+    pointer-events: none;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -5px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #ff4444;
+    }
+  }
     
     &:hover {
       filter: brightness(1.1);
