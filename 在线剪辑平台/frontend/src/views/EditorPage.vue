@@ -75,6 +75,16 @@
               <p>视频预览区域</p>
               <p class="preview-hint">点击播放按钮预览编辑效果</p>
             </div>
+            <!-- Canvas 框选层 -->
+            <canvas
+              ref="watermarkCanvasRef"
+              class="watermark-canvas"
+              :class="{ 'selecting': isSelectingWatermark }"
+              @mousedown="handleCanvasMouseDown"
+              @mousemove="handleCanvasMouseMove"
+              @mouseup="handleCanvasMouseUp"
+              @mouseleave="handleCanvasMouseUp"
+            ></canvas>
             <!-- 视频控制栏 -->
             <div class="preview-controls">
               <div class="control-left">
@@ -310,6 +320,95 @@
             </div>
           </el-tab-pane>
 
+          <!-- 去水印设置 -->
+          <el-tab-pane label="去水印" name="watermark">
+            <template #label>
+              <span class="tab-label">
+                <el-icon><Delete /></el-icon>
+                去水印
+              </span>
+            </template>
+            <div class="tab-content">
+              <el-alert
+                title="框选水印区域"
+                description="点击下方按钮，然后在视频预览区拖动鼠标框选水印位置"
+                type="info"
+                :closable="false"
+                show-icon
+              />
+              
+              <div class="watermark-actions">
+                <el-button 
+                  type="primary"
+                  @click="startWatermarkSelection"
+                >
+                  {{ isSelectingWatermark ? '框选中...' : '开始框选' }}
+                </el-button>
+                <el-button @click="clearWatermarkRegions">
+                  清空选区
+                </el-button>
+              </div>
+
+              <!-- 已选区域列表 -->
+              <div class="region-list" v-if="watermarkRegions.length > 0">
+                <h4>已选区域 ({{ watermarkRegions.length }})</h4>
+                <div 
+                  v-for="(region, index) in watermarkRegions" 
+                  :key="index"
+                  class="region-item"
+                >
+                  <span class="region-index">区域 {{ index + 1 }}</span>
+                  <span class="region-info">
+                    x: {{ region.x }}, y: {{ region.y }}, 
+                    {{ region.width }}×{{ region.height }}
+                  </span>
+                  <el-button 
+                    size="small" 
+                    type="danger" 
+                    link
+                    @click="removeRegion(index)"
+                  >
+                    删除
+                  </el-button>
+                </div>
+              </div>
+
+              <!-- 当前选区信息 -->
+              <div class="current-selection" v-if="currentSelection">
+                <h4>当前选区预览</h4>
+                <div class="selection-info">
+                  <span>x: {{ currentSelection.x }}</span>
+                  <span>y: {{ currentSelection.y }}</span>
+                  <span>宽度: {{ currentSelection.width }}</span>
+                  <span>高度: {{ currentSelection.height }}</span>
+                </div>
+              </div>
+
+              <!-- 模糊强度设置 -->
+              <div class="setting-group">
+                <h4>处理参数</h4>
+                <div class="setting-item">
+                  <span>模糊强度</span>
+                  <el-slider v-model="watermarkBlur" :min="5" :max="50" />
+                  <span class="setting-value">{{ watermarkBlur }}</span>
+                </div>
+              </div>
+
+              <!-- 去除水印按钮 -->
+              <el-button 
+                type="success" 
+                size="large" 
+                :loading="processingWatermark"
+                :disabled="watermarkRegions.length === 0"
+                @click="applyWatermarkRemoval"
+                class="apply-watermark-btn"
+              >
+                <el-icon><Check /></el-icon>
+                去除水印
+              </el-button>
+            </div>
+          </el-tab-pane>
+
           <!-- 输出配置 -->
           <el-tab-pane label="输出设置" name="output">
             <template #label>
@@ -443,6 +542,20 @@ const outputSettings = ref({
   format: 'mp4',
   quality: 'high'
 })
+
+// 去水印相关状态
+const isSelectingWatermark = ref(false)
+const watermarkRegions = ref([])
+const currentSelection = ref(null)
+const watermarkBlur = ref(10)
+const processingWatermark = ref(false)
+const watermarkCanvasRef = ref(null)
+
+// Canvas 绘制相关
+let canvasCtx = null
+let isDrawing = false
+let startX = 0
+let startY = 0
 
 // BGM 列表
 const bgmList = ref([
@@ -664,6 +777,165 @@ const startProcessing = () => {
   router.push('/progress')
 }
 
+// ============ 去水印相关方法 ============
+
+// 初始化 Canvas
+const initCanvas = () => {
+  if (!watermarkCanvasRef.value) return
+  
+  const canvas = watermarkCanvasRef.value
+  const parent = canvas.parentElement
+  if (!parent) return
+  
+  const rect = parent.getBoundingClientRect()
+  canvas.width = rect.width
+  canvas.height = rect.height
+  canvasCtx = canvas.getContext('2d')
+  
+  // 绘制已选区域
+  drawRegions()
+}
+
+// 绘制所有选区
+const drawRegions = () => {
+  if (!canvasCtx || !watermarkCanvasRef.value) return
+  
+  const canvas = watermarkCanvasRef.value
+  canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 绘制已保存的区域（半透明蓝色）
+  watermarkRegions.value.forEach(region => {
+    canvasCtx.fillStyle = 'rgba(64, 158, 255, 0.3)'
+    canvasCtx.strokeStyle = '#409EFF'
+    canvasCtx.lineWidth = 2
+    canvasCtx.fillRect(region.x, region.y, region.width, region.height)
+    canvasCtx.strokeRect(region.x, region.y, region.width, region.height)
+  })
+  
+  // 绘制当前选区（半透明红色）
+  if (currentSelection.value) {
+    const sel = currentSelection.value
+    canvasCtx.fillStyle = 'rgba(245, 108, 108, 0.3)'
+    canvasCtx.strokeStyle = '#F56C6C'
+    canvasCtx.lineWidth = 2
+    canvasCtx.fillRect(sel.x, sel.y, sel.width, sel.height)
+    canvasCtx.strokeRect(sel.x, sel.y, sel.width, sel.height)
+  }
+}
+
+// 开始框选
+const startWatermarkSelection = () => {
+  isSelectingWatermark.value = !isSelectingWatermark.value
+  
+  if (isSelectingWatermark.value) {
+    ElMessage.info('请在视频预览区拖动鼠标框选水印区域')
+    // 初始化 Canvas
+    setTimeout(initCanvas, 100)
+  } else {
+    currentSelection.value = null
+    drawRegions()
+  }
+}
+
+// Canvas 鼠标按下
+const handleCanvasMouseDown = (e) => {
+  if (!isSelectingWatermark.value) return
+  
+  const canvas = watermarkCanvasRef.value
+  const rect = canvas.getBoundingClientRect()
+  
+  isDrawing = true
+  startX = e.clientX - rect.left
+  startY = e.clientY - rect.top
+  
+  currentSelection.value = { x: startX, y: startY, width: 0, height: 0 }
+}
+
+// Canvas 鼠标移动
+const handleCanvasMouseMove = (e) => {
+  if (!isDrawing || !isSelectingWatermark.value) return
+  
+  const canvas = watermarkCanvasRef.value
+  const rect = canvas.getBoundingClientRect()
+  
+  const currentX = e.clientX - rect.left
+  const currentY = e.clientY - rect.top
+  
+  // 计算选区（处理从右往左、从下往上拖动）
+  currentSelection.value = {
+    x: Math.min(startX, currentX),
+    y: Math.min(startY, currentY),
+    width: Math.abs(currentX - startX),
+    height: Math.abs(currentY - startY)
+  }
+  
+  drawRegions()
+}
+
+// Canvas 鼠标释放
+const handleCanvasMouseUp = () => {
+  if (!isDrawing) return
+  
+  isDrawing = false
+  
+  if (currentSelection.value && 
+      currentSelection.value.width > 10 && 
+      currentSelection.value.height > 10) {
+    // 添加到选区列表
+    watermarkRegions.value.push({ ...currentSelection.value })
+    store.watermarkRegions = watermarkRegions.value
+    ElMessage.success(`已添加选区 (${watermarkRegions.value.length})`)
+  }
+  
+  currentSelection.value = null
+  drawRegions()
+}
+
+// 清空所有选区
+const clearWatermarkRegions = () => {
+  watermarkRegions.value = []
+  store.watermarkRegions = []
+  currentSelection.value = null
+  drawRegions()
+  ElMessage.info('已清空所有选区')
+}
+
+// 删除单个选区
+const removeRegion = (index) => {
+  watermarkRegions.value.splice(index, 1)
+  store.watermarkRegions = watermarkRegions.value
+  drawRegions()
+  ElMessage.info(`已删除选区 ${index + 1}`)
+}
+
+// 应用去水印
+const applyWatermarkRemoval = async () => {
+  if (watermarkRegions.value.length === 0) {
+    ElMessage.warning('请先框选水印区域')
+    return
+  }
+  
+  processingWatermark.value = true
+  
+  try {
+    // 保存水印配置到 store
+    store.watermarkBlur = watermarkBlur.value
+    store.watermarkRegions = watermarkRegions.value
+    
+    ElMessage.success('去水印配置已保存，将在处理时应用')
+    
+    // 退出框选模式
+    isSelectingWatermark.value = false
+    currentSelection.value = null
+    drawRegions()
+  } catch (error) {
+    console.error('去水印配置失败:', error)
+    ElMessage.error('去水印配置失败')
+  } finally {
+    processingWatermark.value = false
+  }
+}
+
 onMounted(() => {
   // 初始化时从 store 恢复配置
   if (store.selectedBgm) {
@@ -680,6 +952,14 @@ onMounted(() => {
   subtitleEnabled.value = store.subtitleEnabled
   subtitleStyle.value = { ...store.subtitleStyle }
   outputSettings.value = { ...store.outputSettings }
+  
+  // 恢复去水印配置
+  if (store.watermarkRegions) {
+    watermarkRegions.value = store.watermarkRegions
+  }
+  if (store.watermarkBlur) {
+    watermarkBlur.value = store.watermarkBlur
+  }
   
   // 获取剧本解析结果
   if (store.scriptParsedResult) {
@@ -1374,5 +1654,92 @@ onMounted(() => {
     display: flex;
     gap: 12px;
   }
+}
+
+// ============ 去水印相关样式 ============
+
+// Canvas 框选层
+.watermark-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  
+  &.selecting {
+    pointer-events: auto;
+    cursor: crosshair;
+  }
+}
+
+// 去水印标签页样式
+.watermark-actions {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.region-list {
+  margin: 16px 0;
+  
+  h4 {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 12px;
+  }
+}
+
+.region-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  
+  .region-index {
+    font-size: 12px;
+    color: #409EFF;
+    font-weight: 500;
+  }
+  
+  .region-info {
+    flex: 1;
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+  }
+}
+
+.current-selection {
+  margin: 16px 0;
+  
+  h4 {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 12px;
+  }
+}
+
+.selection-info {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  
+  span {
+    font-size: 12px;
+    color: #F56C6C;
+    font-family: monospace;
+  }
+}
+
+.apply-watermark-btn {
+  width: 100%;
+  margin-top: 16px;
 }
 </style>

@@ -37,6 +37,10 @@ export const useProjectStore = defineStore('project', () => {
     quality: 'high'
   })
   
+  // 去水印配置
+  const watermarkRegions = ref([])
+  const watermarkBlur = ref(10)
+  
   // 处理进度
   const processingProgress = ref(0)
   const processingStatus = ref('idle') // idle, uploading, processing, completed, error
@@ -95,6 +99,8 @@ export const useProjectStore = defineStore('project', () => {
     bgmVolume.value = 80
     bgmFadeIn.value = 2
     bgmFadeOut.value = 2
+    watermarkRegions.value = []
+    watermarkBlur.value = 10
     processingProgress.value = 0
     processingStatus.value = 'idle'
     processingMessage.value = ''
@@ -115,6 +121,8 @@ export const useProjectStore = defineStore('project', () => {
     subtitleEnabled,
     subtitleStyle,
     outputSettings,
+    watermarkRegions,
+    watermarkBlur,
     processingProgress,
     processingStatus,
     processingMessage,
