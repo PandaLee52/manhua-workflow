@@ -17,15 +17,16 @@ import time
 import re
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-# cv2可选导入
+from datetime import datetime
+
+# 可选依赖：opencv用于水印检测
 try:
     import cv2
     CV2_AVAILABLE = True
 except ImportError:
     CV2_AVAILABLE = False
-from datetime import datetime
 
-# 导入水印处理模块（可选）
+# 可选导入水印处理模块
 try:
     from watermark_remover import WatermarkDetector, SubtitleDetector, WatermarkRemover, WatermarkProcessor
     from video_processor import WatermarkVideoProcessor, VideoFrameExtractor, VideoAssembler
@@ -1282,6 +1283,13 @@ def detect_watermark():
     水印检测接口
     检测视频中的水印位置和类型
     """
+    # 检查水印处理模块是否可用
+    if not WATERMARK_MODULES_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': '水印检测功能暂不可用，需要安装opencv-python系统依赖'
+        }), 503
+    
     try:
         data = request.get_json() or {}
         video_id = data.get('video_id')
@@ -1373,6 +1381,13 @@ def remove_watermark():
     水印去除接口
     移除视频中的水印
     """
+    # 检查水印处理模块是否可用
+    if not WATERMARK_MODULES_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': '水印去除功能暂不可用，需要安装opencv-python系统依赖'
+        }), 503
+    
     try:
         data = request.get_json() or {}
         video_id = data.get('video_id')
@@ -1729,6 +1744,13 @@ def api_detect_watermark():
         }
     }
     """
+    # 检查模块是否可用
+    if not WATERMARK_MODULES_AVAILABLE or not CV2_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': '水印检测功能暂不可用，需要安装opencv-python系统依赖'
+        }), 503
+    
     try:
         regions = []
         frame_info = {}
@@ -1965,12 +1987,16 @@ def api_detect_subtitle():
 # ============================================
 # 13. 去水印处理API (POST /api/remove-watermark)
 # ============================================
-# 初始化水印处理器
-watermark_processor = WatermarkVideoProcessor(
-    temp_dir=TEMP_FOLDER,
-    output_dir=PROCESSED_FOLDER
-)
-batch_proc = BatchProcessor(max_workers=2)
+# 初始化水印处理器（仅在模块可用时）
+if WATERMARK_MODULES_AVAILABLE:
+    watermark_processor = WatermarkVideoProcessor(
+        temp_dir=TEMP_FOLDER,
+        output_dir=PROCESSED_FOLDER
+    )
+    batch_proc = BatchProcessor(max_workers=2)
+else:
+    watermark_processor = None
+    batch_proc = None
 
 
 @app.route('/api/remove-watermark', methods=['POST'])
