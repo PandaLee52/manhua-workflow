@@ -2523,6 +2523,15 @@ def remove_watermark_ffmpeg_preview():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# 前端静态文件服务
+@app.route("/app")
+def serve_app():
+    return send_from_directory("static", "index.html")
+
+@app.route("/app/assets/<path:filename>")
+def serve_assets(filename):
+    return send_from_directory("static/assets", filename)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
