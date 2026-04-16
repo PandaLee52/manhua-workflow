@@ -329,6 +329,19 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
+// 格式化时长（秒转 MM:SS 或 HH:MM:SS）
+const formatDuration = (seconds) => {
+  if (!seconds) return '00:00'
+  const hrs = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  
+  if (hrs > 0) {
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 // 触发视频上传
 const triggerVideoUpload = () => {
   videoUploadRef.value?.handleClick()
@@ -384,11 +397,13 @@ const handleVideoChange = async (file, fileList) => {
 const uploadSingleVideo = async (videoFile) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData()
-    formData.append('video', videoFile.file)
+    // 后端API期望字段名为 'videos'（支持多文件数组格式）
+    formData.append('videos', videoFile.file)
     formData.append('project_name', projectName.value || '未命名项目')
     
     const xhr = new XMLHttpRequest()
-    const apiUrl = 'https://manhua-workflow-1.onrender.com/upload'
+    // 使用相对路径，后端路由为 /upload/videos
+    const apiUrl = '/upload/videos'
     
     xhr.open('POST', apiUrl)
     
@@ -407,25 +422,47 @@ const uploadSingleVideo = async (videoFile) => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText)
-          if (clip) {
-            clip.status = 'done'
-            clip.progress = 100
-            clip.serverId = response.data?.video_id || response.video_id
-            clip.duration = response.data?.duration || clip.duration
+          if (response.success) {
+            // 从后端返回的 videos 数组中获取第一个视频的信息
+            const videoInfo = response.data?.videos?.[0]
+            if (clip) {
+              clip.status = 'done'
+              clip.progress = 100
+              clip.serverId = videoInfo?.id || videoInfo?.filename
+              clip.duration = videoInfo?.duration ? formatDuration(videoInfo.duration) : clip.duration
+            }
+            resolve(response)
+          } else {
+            // 后端返回失败
+            const errorMsg = response.error || response.message || '未知错误'
+            if (clip) {
+              clip.status = 'error'
+            }
+            reject(new Error(`上传失败: ${errorMsg}`))
           }
-          resolve(response)
-        } catch {
+        } catch (e) {
+          console.error('解析响应失败:', e)
           if (clip) {
-            clip.status = 'done'
-            clip.progress = 100
+            clip.status = 'error'
           }
-          resolve()
+          reject(new Error('解析服务器响应失败'))
         }
       } else {
+        // HTTP错误，尝试解析错误信息
+        let errorMsg = `HTTP错误: ${xhr.status}`
+        try {
+          const errorResponse = JSON.parse(xhr.responseText)
+          if (errorResponse.error) {
+            errorMsg = errorResponse.error
+          } else if (errorResponse.message) {
+            errorMsg = errorResponse.message
+          }
+        } catch {}
+        
         if (clip) {
           clip.status = 'error'
         }
-        reject(new Error(`上传失败: ${xhr.status}`))
+        reject(new Error(errorMsg))
       }
     }
     
@@ -434,7 +471,7 @@ const uploadSingleVideo = async (videoFile) => {
       if (clip) {
         clip.status = 'error'
       }
-      reject(new Error('网络连接失败'))
+      reject(new Error('网络连接失败，请检查网络或后端服务是否可用'))
     }
     
     xhr.send(formData)
