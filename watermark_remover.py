@@ -1,10 +1,21 @@
 # 视频去水印/字幕AI模块
 # 提供水印检测、字幕检测、区域去除功能
+# 注意: cv2/PIL/pytesseract 为可选依赖，免费层不可用时会提供模拟实现
 
-import cv2
-import numpy as np
-from PIL import Image
-import pytesseract
+# 可选依赖
+try:
+    import cv2
+    import numpy as np
+    from PIL import Image
+    import pytesseract
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    cv2 = None
+    np = None
+    Image = None
+    pytesseract = None
+
 from typing import List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass
 import logging
@@ -26,11 +37,13 @@ class WatermarkDetector:
     """水印检测器 - 使用OpenCV检测固定位置的重复图案"""
     
     def __init__(self):
+        if not CV2_AVAILABLE:
+            logger.warning("WatermarkDetector: cv2不可用，功能受限")
         self.min_watermark_width = 50
         self.min_watermark_height = 20
         self.confidence_threshold = 0.6
         
-    def detect(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def detect(self, frame) -> List[DetectedRegion]:
         """
         检测视频帧中的水印区域
         
@@ -39,7 +52,16 @@ class WatermarkDetector:
             
         Returns:
             检测到的水印区域列表
+            
+        Raises:
+            RuntimeError: 当cv2不可用时
         """
+        if not CV2_AVAILABLE:
+            raise RuntimeError(
+                "水印检测功能不可用: cv2/OpenCV未安装\n"
+                "如需使用此功能，请在有OpenCV环境中运行"
+            )
+        
         regions = []
         
         # 1. 检测固定位置水印（角落和边缘）
@@ -56,7 +78,7 @@ class WatermarkDetector:
         
         return self._merge_overlapping_regions(regions)
     
-    def _detect_corner_watermarks(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_corner_watermarks(self, frame) -> List[DetectedRegion]:
         """检测角落固定位置的水印"""
         regions = []
         h, w = frame.shape[:2]
@@ -89,7 +111,7 @@ class WatermarkDetector:
         
         return regions
     
-    def _detect_logo_watermark(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_logo_watermark(self, frame) -> List[DetectedRegion]:
         """检测Logo类型水印（重复出现的小区域）"""
         regions = []
         
@@ -127,7 +149,7 @@ class WatermarkDetector:
         
         return regions
     
-    def _detect_transparent_watermark(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_transparent_watermark(self, frame) -> List[DetectedRegion]:
         """检测半透明水印"""
         regions = []
         h, w = frame.shape[:2]
@@ -167,7 +189,7 @@ class WatermarkDetector:
         
         return regions
     
-    def _is_watermark_region(self, roi: np.ndarray) -> bool:
+    def _is_watermark_region(self, roi) -> bool:
         """判断ROI是否可能是水印区域"""
         if roi.size == 0:
             return False
@@ -178,7 +200,7 @@ class WatermarkDetector:
         # 水印通常对比度较低或颜色均匀
         return std_dev < 80 or (np.mean(roi) > 200 and std_dev < 30)
     
-    def _cluster_points(self, points: np.ndarray, eps: float = 30) -> List[np.ndarray]:
+    def _cluster_points(self, points, eps: float = 30) -> List:
         """简单的距离聚类"""
         clusters = []
         used = set()
@@ -255,17 +277,34 @@ class WatermarkDetector:
         union = reg1.width * reg1.height + reg2.width * reg2.height - intersection
         
         return intersection / union if union > 0 else 0.0
+    
+    def get_common_positions(self, frame_shape: Tuple[int, int]) -> List[Dict[str, Any]]:
+        """
+        返回常见水印位置（不依赖cv2）
+        用于手动去除时参考
+        """
+        h, w = frame_shape
+        return [
+            {"name": "左上角", "x": 0, "y": 0, "width": w // 4, "height": h // 6},
+            {"name": "右上角", "x": w * 3 // 4, "y": 0, "width": w // 4, "height": h // 6},
+            {"name": "左下角", "x": 0, "y": h - h // 5, "width": w // 3, "height": h // 5},
+            {"name": "右下角", "x": w * 2 // 3, "y": h - h // 6, "width": w // 3, "height": h // 6},
+            {"name": "底部居中", "x": w // 6, "y": h - h // 6, "width": w * 2 // 3, "height": h // 6},
+            {"name": "顶部居中", "x": w // 4, "y": 0, "width": w // 2, "height": h // 8},
+        ]
 
 
 class SubtitleDetector:
     """字幕检测器 - 使用OCR检测视频底部文字区域"""
     
     def __init__(self):
+        if not CV2_AVAILABLE:
+            logger.warning("SubtitleDetector: cv2/pytesseract不可用，功能受限")
         self.subtitle_height_ratio = 0.15  # 字幕区域占画面高度的最大比例
         self.subtitle_y_offset = 0.75  # 字幕通常在画面75%以下
         self.min_text_height = 15  # 最小文字高度
         
-    def detect(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def detect(self, frame) -> List[DetectedRegion]:
         """
         检测视频帧中的字幕区域
         
@@ -274,7 +313,16 @@ class SubtitleDetector:
             
         Returns:
             检测到的字幕区域列表
+            
+        Raises:
+            RuntimeError: 当cv2/pytesseract不可用时
         """
+        if not CV2_AVAILABLE:
+            raise RuntimeError(
+                "字幕检测功能不可用: cv2或pytesseract未安装\n"
+                "如需使用此功能，请在有OpenCV和Tesseract环境中运行"
+            )
+        
         regions = []
         h, w = frame.shape[:2]
         
@@ -295,7 +343,7 @@ class SubtitleDetector:
         
         return merged
     
-    def _detect_by_position(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_by_position(self, frame) -> List[DetectedRegion]:
         """基于位置检测字幕区域"""
         regions = []
         h, w = frame.shape[:2]
@@ -324,7 +372,7 @@ class SubtitleDetector:
         
         return regions
     
-    def _detect_by_ocr(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_by_ocr(self, frame) -> List[DetectedRegion]:
         """使用OCR检测字幕"""
         regions = []
         h, w = frame.shape[:2]
@@ -374,7 +422,7 @@ class SubtitleDetector:
         
         return regions
     
-    def _detect_by_edge(self, frame: np.ndarray) -> List[DetectedRegion]:
+    def _detect_by_edge(self, frame) -> List[DetectedRegion]:
         """基于边缘检测字幕"""
         regions = []
         h, w = frame.shape[:2]
@@ -488,10 +536,12 @@ class WatermarkRemover:
     """水印去除器 - 使用图像修复技术"""
     
     def __init__(self):
-        self.inpaint_method = cv2.INPAINT_TELEA  # TELEA算法，效果更好
+        if not CV2_AVAILABLE:
+            logger.warning("WatermarkRemover: cv2不可用，功能受限")
+        self.inpaint_method = cv2.INPAINT_TELEA if CV2_AVAILABLE else None  # TELEA算法，效果更好
         # cv2.INPAINT_NS  # Navier-Stokes算法，速度更快
     
-    def remove(self, frame: np.ndarray, regions: List[DetectedRegion], expand: int = 5) -> np.ndarray:
+    def remove(self, frame, regions: List[DetectedRegion], expand: int = 5):
         """
         去除水印/字幕
         
@@ -502,7 +552,16 @@ class WatermarkRemover:
             
         Returns:
             处理后的视频帧
+            
+        Raises:
+            RuntimeError: 当cv2不可用时
         """
+        if not CV2_AVAILABLE:
+            raise RuntimeError(
+                "水印去除功能不可用: cv2/OpenCV未安装\n"
+                "如需使用此功能，请在有OpenCV环境中运行"
+            )
+        
         result = frame.copy()
         
         for region in regions:
@@ -525,7 +584,7 @@ class WatermarkRemover:
         
         return result
     
-    def remove_by_coords(self, frame: np.ndarray, coords: List[List[int]]) -> np.ndarray:
+    def remove_by_coords(self, frame, coords: List[List[int]]):
         """
         根据坐标去除区域
         
@@ -547,22 +606,39 @@ class WatermarkProcessor:
     """视频水印处理主类"""
     
     def __init__(self):
-        self.detector = WatermarkDetector()
-        self.subtitle_detector = SubtitleDetector()
-        self.remover = WatermarkRemover()
+        if CV2_AVAILABLE:
+            self.detector = WatermarkDetector()
+            self.subtitle_detector = SubtitleDetector()
+            self.remover = WatermarkRemover()
+        else:
+            # 保存未初始化的状态，后续调用会检测
+            self.detector = None
+            self.subtitle_detector = None
+            self.remover = None
+            logger.warning(
+                "WatermarkProcessor: OpenCV依赖不可用，水印功能受限\n"
+                "可用的降级功能:\n"
+                "  - get_common_positions(): 获取常见水印位置供参考"
+            )
         
-    def detect_watermark(self, frame: np.ndarray) -> List[Dict[str, Any]]:
+    def detect_watermark(self, frame) -> List[Dict[str, Any]]:
         """检测水印"""
+        if self.detector is None:
+            raise RuntimeError("水印检测不可用: OpenCV未安装")
         regions = self.detector.detect(frame)
         return [self._region_to_dict(r) for r in regions]
     
-    def detect_subtitle(self, frame: np.ndarray) -> List[Dict[str, Any]]:
+    def detect_subtitle(self, frame) -> List[Dict[str, Any]]:
         """检测字幕"""
+        if self.subtitle_detector is None:
+            raise RuntimeError("字幕检测不可用: OpenCV未安装")
         regions = self.subtitle_detector.detect(frame)
         return [self._region_to_dict(r) for r in regions]
     
-    def detect_all(self, frame: np.ndarray) -> Dict[str, Any]:
+    def detect_all(self, frame) -> Dict[str, Any]:
         """同时检测水印和字幕"""
+        if self.detector is None or self.subtitle_detector is None:
+            raise RuntimeError("检测功能不可用: OpenCV未安装")
         watermark_regions = self.detector.detect(frame)
         subtitle_regions = self.subtitle_detector.detect(frame)
         
@@ -572,8 +648,10 @@ class WatermarkProcessor:
             "all_regions": [self._region_to_dict(r) for r in watermark_regions + subtitle_regions]
         }
     
-    def remove_regions(self, frame: np.ndarray, regions: List[Dict]) -> np.ndarray:
+    def remove_regions(self, frame, regions: List[Dict]) -> Any:
         """去除指定区域"""
+        if self.remover is None:
+            raise RuntimeError("水印去除不可用: OpenCV未安装")
         detected_regions = [
             DetectedRegion(
                 x=r['x'], y=r['y'],
@@ -585,6 +663,14 @@ class WatermarkProcessor:
             for r in regions
         ]
         return self.remover.remove(frame, detected_regions)
+    
+    def get_common_positions(self, frame_shape: Tuple[int, int]) -> List[Dict[str, Any]]:
+        """
+        获取常见水印位置（不依赖cv2）
+        可用于手动去除时的参考坐标
+        """
+        detector = WatermarkDetector()
+        return detector.get_common_positions(frame_shape)
     
     def _region_to_dict(self, region: DetectedRegion) -> Dict[str, Any]:
         """将DetectedRegion转为字典"""
@@ -602,14 +688,30 @@ class WatermarkProcessor:
 # 全局处理器实例
 processor = WatermarkProcessor()
 
-def detect_watermark_from_frame(frame: np.ndarray) -> List[Dict[str, Any]]:
+
+def is_cv2_available() -> bool:
+    """检查OpenCV是否可用"""
+    return CV2_AVAILABLE
+
+
+def detect_watermark_from_frame(frame) -> List[Dict[str, Any]]:
     """从帧检测水印的便捷函数"""
     return processor.detect_watermark(frame)
 
-def detect_subtitle_from_frame(frame: np.ndarray) -> List[Dict[str, Any]]:
+
+def detect_subtitle_from_frame(frame) -> List[Dict[str, Any]]:
     """从帧检测字幕的便捷函数"""
     return processor.detect_subtitle(frame)
 
-def remove_watermark_from_frame(frame: np.ndarray, coords: List[List[int]]) -> np.ndarray:
+
+def remove_watermark_from_frame(frame, coords: List[List[int]]):
     """从帧去除水印的便捷函数"""
     return processor.remover.remove_by_coords(frame, coords)
+
+
+def get_common_watermark_positions(frame_shape: Tuple[int, int]) -> List[Dict[str, Any]]:
+    """
+    获取常见水印位置（不依赖OpenCV）
+    返回可供参考的标准水印坐标
+    """
+    return processor.get_common_positions(frame_shape)
