@@ -361,6 +361,7 @@ const handleVideoChange = async (file, fileList) => {
     name: file.name,
     size: file.size,
     file: file.raw,
+    url: URL.createObjectURL(file.raw),
     status: 'uploading',
     progress: 0,
     duration: ''
@@ -574,6 +575,10 @@ const goToEditor = async () => {
   // 保存到 store
   store.projectName = projectName.value
   store.videoClips = videoClips.value
+  // 设置视频预览URL
+  if (videoClips.value.length > 0 && videoClips.value[0].url) {
+    store.videoUrl = videoClips.value[0].url
+  }
   
   // 如果有剧本且已连接API，尝试解析
   if (scriptFile.value && apiConnected.value) {

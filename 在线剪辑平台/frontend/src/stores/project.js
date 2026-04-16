@@ -48,6 +48,8 @@ export const useProjectStore = defineStore('project', () => {
   
   // 下载链接
   const downloadUrl = ref('')
+  // 视频URL
+  const videoUrl = ref('')
   
   // 计算总时长
   const totalDuration = computed(() => {
@@ -127,6 +129,7 @@ export const useProjectStore = defineStore('project', () => {
     processingStatus,
     processingMessage,
     downloadUrl,
+    videoUrl,
     totalDuration,
     addVideoClip,
     removeVideoClip,
