@@ -398,12 +398,12 @@ const uploadSingleVideo = async (videoFile) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData()
     // 后端API期望字段名为 'videos'（支持多文件数组格式）
-    formData.append('videos', videoFile.file)
+    formData.append('files', videoFile.file)
     formData.append('project_name', projectName.value || '未命名项目')
     
     const xhr = new XMLHttpRequest()
     // 使用相对路径，后端路由为 /upload/videos
-    const apiUrl = '/upload/videos'
+    const apiUrl = '/upload'
     
     xhr.open('POST', apiUrl)
     
