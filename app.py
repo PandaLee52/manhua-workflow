@@ -17,10 +17,22 @@ import time
 import re
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-import cv2
+# cv2可选导入
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
 from datetime import datetime
 
-# 导入水印处理模块
+# 导入水印处理模块（可选）
+try:
+    from watermark_remover import WatermarkDetector, SubtitleDetector, WatermarkRemover, WatermarkProcessor
+    from video_processor import WatermarkVideoProcessor, VideoFrameExtractor, VideoAssembler
+    from batch_processor import BatchProcessor, BatchStatus
+    WATERMARK_MODULES_AVAILABLE = True
+except ImportError:
+    WATERMARK_MODULES_AVAILABLE = False
 from watermark_remover import WatermarkDetector, SubtitleDetector, WatermarkRemover, WatermarkProcessor
 from video_processor import WatermarkVideoProcessor, VideoFrameExtractor, VideoAssembler
 from batch_processor import BatchProcessor, BatchStatus
