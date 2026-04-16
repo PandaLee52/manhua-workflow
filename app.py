@@ -33,9 +33,6 @@ try:
     WATERMARK_MODULES_AVAILABLE = True
 except ImportError:
     WATERMARK_MODULES_AVAILABLE = False
-from watermark_remover import WatermarkDetector, SubtitleDetector, WatermarkRemover, WatermarkProcessor
-from video_processor import WatermarkVideoProcessor, VideoFrameExtractor, VideoAssembler
-from batch_processor import BatchProcessor, BatchStatus
 
 app = Flask(__name__)
 CORS(app)
