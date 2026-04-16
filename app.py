@@ -2550,6 +2550,14 @@ def serve_assets(filename):
     static_path = os.path.join(base_dir, "static", "assets")
     return send_from_directory(static_path, filename)
 
+
+@app.route("/assets/<path:filename>")
+def serve_assets_direct(filename):
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+    static_path = os.path.join(base_dir, "static", "assets")
+    return send_from_directory(static_path, filename)
+
 @app.route("/favicon.svg")
 def serve_favicon():
     import os
