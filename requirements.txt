@@ -1,23 +1,7 @@
-# Flask框架
 Flask==3.0.0
 Flask-CORS==4.0.0
 gunicorn==21.2.0
-
-# HTTP请求
 requests==2.31.0
-urllib3==2.1.0
-
-# 视频处理
 ffmpeg-python==0.2.0
-opencv-python==4.8.1.78
 Pillow==10.1.0
-pytesseract==0.3.10
-
-# 数据验证
-marshmallow==3.20.1
-
-# 日志
-python-json-logger==2.0.7
-
-# 其他工具
 python-dotenv==1.0.0
