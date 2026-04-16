@@ -4,7 +4,7 @@ AI剪辑平台 - Render部署版
 整合视频上传、合并、处理、BGM搜索和AI智能剪辑功能
 """
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import uuid
