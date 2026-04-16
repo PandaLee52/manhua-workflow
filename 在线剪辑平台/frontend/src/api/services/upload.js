@@ -13,7 +13,7 @@ import { API_ENDPOINTS } from '../config.js'
  */
 export async function uploadVideo(file, onProgress) {
   const formData = new FormData()
-  formData.append('video', file)
+  formData.append('files', file)
   
   const response = await postFormData(API_ENDPOINTS.UPLOAD, formData, onProgress)
   return response
