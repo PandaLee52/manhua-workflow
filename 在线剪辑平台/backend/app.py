@@ -1425,6 +1425,30 @@ def quick_parse():
 # ==================== 主程序 ====================
 
 if __name__ == '__main__':
+
+# ==================== 前端静态文件服务 ====================
+
+@app.route('/')
+def serve_index():
+    """返回前端首页"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    return send_from_directory(static_dir, 'index.html')
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """返回前端静态资源"""
+    static_dir = Path(__file__).parent.parent / 'static' / 'assets'
+    return send_from_directory(static_dir, filename)
+
+@app.route('/<path:path>')
+def serve_spa(path):
+    """SPA路由 - 所有未匹配的路由返回index.html"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    file_path = static_dir / path
+    if file_path.exists():
+        return send_from_directory(static_dir, path)
+    return send_from_directory(static_dir, 'index.html')
+
     print("=" * 50)
     print("在线剪辑平台 - 后端API服务")
     print("=" * 50)
@@ -1461,3 +1485,27 @@ if __name__ == '__main__':
         port=config.FLASK_PORT,
         debug=config.FLASK_DEBUG
     )
+
+# ==================== 前端静态文件服务 ====================
+
+@app.route('/')
+def serve_index():
+    """返回前端首页"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    return send_from_directory(static_dir, 'index.html')
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """返回前端静态资源"""
+    static_dir = Path(__file__).parent.parent / 'static' / 'assets'
+    return send_from_directory(static_dir, filename)
+
+@app.route('/<path:path>')
+def serve_spa(path):
+    """SPA路由 - 所有未匹配的路由返回index.html"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    file_path = static_dir / path
+    if file_path.exists():
+        return send_from_directory(static_dir, path)
+    return send_from_directory(static_dir, 'index.html')
+
