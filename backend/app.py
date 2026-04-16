@@ -4,9 +4,12 @@
 """
 
 import os
+import io
+import re
+import uuid
 import json
 import time
-import uuid
+import subprocess
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -15,39 +18,22 @@ from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from typing import List, Dict, Any
 
 import config
 from tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
 from ai_requirements import AIRequirementsParser, parse_requirements, parse_to_json, list_preset_templates, PRESET_TEMPLATES
+from ai_features import (
+    generate_srt_from_audio, simulate_subtitles, get_video_duration,
+    generate_clipping_suggestions, enhanced_parse_instructions,
+    detect_character_consistency, convert_to_srt_no_punct, remove_punctuation, format_srt_time
+)
 
 # ==================== Flask应用初始化 ====================
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# 获取项目根目录
-BASE_DIR = Path(__file__).parent.parent
-STATIC_DIR = BASE_DIR / 'static'
-
-# 静态文件服务路由
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """服务静态文件"""
-    return send_from_directory(str(STATIC_DIR), filename)
-
-@app.route('/')
-def index():
-    """首页"""
-    return send_from_directory(str(STATIC_DIR), 'index.html')
-
-@app.route('/<path:filename>')
-def spa_router(filename):
-    """SPA路由 - 支持前端路由"""
-    file_path = STATIC_DIR / filename
-    if file_path.exists() and file_path.is_file():
-        return send_from_directory(str(STATIC_DIR), filename)
-    return send_from_directory(str(STATIC_DIR), 'index.html')
 
 # 确保目录存在
 config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -906,672 +892,6 @@ def get_stats():
         return api_response(success=False, error=str(e))
 
 
-# ==================== 视频去水印/字幕API ====================
-
-import cv2
-from watermark_remover import WatermarkDetector, SubtitleDetector, WatermarkProcessor
-from video_processor import WatermarkVideoProcessor, VideoFrameExtractor
-from batch_processor import BatchProcessor, BatchStatus
-
-# 初始化处理器
-watermark_processor = WatermarkVideoProcessor(
-    temp_dir=str(config.TEMP_DIR),
-    output_dir=str(config.OUTPUT_DIR)
-)
-batch_proc = BatchProcessor(max_workers=2)
-
-
-@app.route('/api/detect-watermark', methods=['POST'])
-def detect_watermark():
-    """
-    AI自动检测水印区域
-    
-    请求方式: multipart/form-data 或 JSON
-    
-    方式1 - 文件上传:
-        - file: 图片或视频文件
-        
-    方式2 - JSON:
-        {
-            "video_path": "/path/to/video.mp4"  // 服务器上的视频路径
-        }
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "regions": [
-                {"x": 100, "y": 50, "width": 200, "height": 40, "type": "watermark", "confidence": 0.85, "label": "corner_watermark"},
-                ...
-            ],
-            "frame_info": {"width": 1920, "height": 1080}
-        }
-    }
-    """
-    try:
-        regions = []
-        frame_info = {}
-        
-        # 方式1: 文件上传
-        if 'file' in request.files:
-            file = request.files['file']
-            if not file.filename:
-                return api_response(success=False, error="未上传文件")
-            
-            # 保存临时文件
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            unique_id = uuid.uuid4().hex[:8]
-            ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
-            temp_path = config.TEMP_DIR / f"detect_{timestamp}_{unique_id}.{ext}"
-            file.save(str(temp_path))
-            
-            # 判断是图片还是视频
-            if ext in ['jpg', 'jpeg', 'png', 'bmp']:
-                # 图片处理
-                frame = cv2.imread(str(temp_path))
-                if frame is None:
-                    return api_response(success=False, error="无法读取图片")
-                
-                frame_info = {"width": frame.shape[1], "height": frame.shape[0]}
-                detector = WatermarkDetector()
-                detected = detector.detect(frame)
-                regions = [
-                    {'x': r.x, 'y': r.y, 'width': r.width, 'height': r.height,
-                     'type': r.type, 'confidence': r.confidence, 'label': r.label}
-                    for r in detected
-                ]
-            else:
-                # 视频处理 - 提取一帧进行检测
-                cap = cv2.VideoCapture(str(temp_path))
-                if not cap.isOpened():
-                    return api_response(success=False, error="无法打开视频")
-                
-                frame_info = {
-                    "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                    "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                    "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                }
-                
-                # 读取中间帧
-                frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-                ret, frame = cap.read()
-                cap.release()
-                
-                if not ret or frame is None:
-                    return api_response(success=False, error="无法读取视频帧")
-                
-                detector = WatermarkDetector()
-                detected = detector.detect(frame)
-                regions = [
-                    {'x': r.x, 'y': r.y, 'width': r.width, 'height': r.height,
-                     'type': r.type, 'confidence': r.confidence, 'label': r.label}
-                    for r in detected
-                ]
-            
-            # 清理临时文件
-            try:
-                temp_path.unlink()
-            except:
-                pass
-        
-        # 方式2: JSON指定视频路径
-        elif request.is_json:
-            data = request.get_json()
-            video_path = data.get('video_path')
-            
-            if not video_path:
-                return api_response(success=False, error="未提供视频路径")
-            
-            if not os.path.exists(video_path):
-                return api_response(success=False, error="视频文件不存在")
-            
-            # 提取帧进行检测
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                return api_response(success=False, error="无法打开视频")
-            
-            frame_info = {
-                "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-                "fps": cap.get(cv2.CAP_PROP_FPS)
-            }
-            
-            # 读取中间帧
-            frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-            ret, frame = cap.read()
-            cap.release()
-            
-            if not ret or frame is None:
-                return api_response(success=False, error="无法读取视频帧")
-            
-            detector = WatermarkDetector()
-            detected = detector.detect(frame)
-            regions = [
-                {'x': r.x, 'y': r.y, 'width': r.width, 'height': r.height,
-                 'type': r.type, 'confidence': r.confidence, 'label': r.label}
-                for r in detected
-            ]
-        
-        else:
-            return api_response(success=False, error="请上传文件或提供视频路径")
-        
-        return api_response(
-            success=True,
-            data={
-                "regions": regions,
-                "region_count": len(regions),
-                "frame_info": frame_info
-            },
-            message=f"检测到 {len(regions)} 个水印区域"
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/detect-subtitle', methods=['POST'])
-def detect_subtitle():
-    """
-    检测字幕区域
-    
-    请求方式: 同 /api/detect-watermark
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "regions": [
-                {"x": 100, "y": 900, "width": 1720, "height": 80, "type": "subtitle", "confidence": 0.9, "label": "ocr_subtitle"},
-                ...
-            ],
-            "frame_info": {"width": 1920, "height": 1080},
-            "has_text": true
-        }
-    }
-    """
-    try:
-        regions = []
-        frame_info = {}
-        has_text = False
-        
-        # 方式1: 文件上传
-        if 'file' in request.files:
-            file = request.files['file']
-            if not file.filename:
-                return api_response(success=False, error="未上传文件")
-            
-            # 保存临时文件
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            unique_id = uuid.uuid4().hex[:8]
-            ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
-            temp_path = config.TEMP_DIR / f"detect_{timestamp}_{unique_id}.{ext}"
-            file.save(str(temp_path))
-            
-            if ext in ['jpg', 'jpeg', 'png', 'bmp']:
-                frame = cv2.imread(str(temp_path))
-                if frame is None:
-                    return api_response(success=False, error="无法读取图片")
-                
-                frame_info = {"width": frame.shape[1], "height": frame.shape[0]}
-            else:
-                cap = cv2.VideoCapture(str(temp_path))
-                if not cap.isOpened():
-                    return api_response(success=False, error="无法打开视频")
-                
-                frame_info = {
-                    "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                    "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                    "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                }
-                
-                frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-                ret, frame = cap.read()
-                cap.release()
-                
-                if not ret or frame is None:
-                    return api_response(success=False, error="无法读取视频帧")
-            
-            try:
-                temp_path.unlink()
-            except:
-                pass
-        
-        # 方式2: JSON指定视频路径
-        elif request.is_json:
-            data = request.get_json()
-            video_path = data.get('video_path')
-            
-            if not video_path:
-                return api_response(success=False, error="未提供视频路径")
-            
-            if not os.path.exists(video_path):
-                return api_response(success=False, error="视频文件不存在")
-            
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                return api_response(success=False, error="无法打开视频")
-            
-            frame_info = {
-                "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-                "fps": cap.get(cv2.CAP_PROP_FPS)
-            }
-            
-            frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-            ret, frame = cap.read()
-            cap.release()
-            
-            if not ret or frame is None:
-                return api_response(success=False, error="无法读取视频帧")
-        
-        else:
-            return api_response(success=False, error="请上传文件或提供视频路径")
-        
-        # 检测字幕
-        detector = SubtitleDetector()
-        detected = detector.detect(frame)
-        regions = [
-            {'x': r.x, 'y': r.y, 'width': r.width, 'height': r.height,
-             'type': r.type, 'confidence': r.confidence, 'label': r.label}
-            for r in detected
-        ]
-        has_text = len(regions) > 0
-        
-        return api_response(
-            success=True,
-            data={
-                "regions": regions,
-                "region_count": len(regions),
-                "frame_info": frame_info,
-                "has_text": has_text
-            },
-            message=f"检测到 {len(regions)} 个字幕区域" if has_text else "未检测到字幕"
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/remove-watermark', methods=['POST'])
-def remove_watermark():
-    """
-    去除视频水印/字幕
-    
-    请求方式: JSON
-    
-    请求体:
-    {
-        "video_path": "/path/to/video.mp4",  // 服务器上的视频路径
-        "regions": [  // 要去除的区域
-            {"x": 100, "y": 50, "width": 200, "height": 40},
-            {"x": 0, "y": 900, "width": 1920, "height": 80}
-        ],
-        "preserve_audio": true,  // 是否保留音频，默认true
-        "auto_detect": false,    // 是否自动检测，默认false
-        "detect_type": "all"     // 检测类型: watermark/subtitle/all
-    }
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "task_id": "watermark_xxx",
-            "status": "processing",
-            "output_path": "/output/watermark_xxx.mp4",
-            "detected_regions": [...]  // 如果auto_detect为true
-        }
-    }
-    """
-    try:
-        data = request.get_json()
-        
-        video_path = data.get('video_path')
-        regions = data.get('regions', [])
-        preserve_audio = data.get('preserve_audio', True)
-        auto_detect = data.get('auto_detect', False)
-        detect_type = data.get('detect_type', 'all')
-        
-        if not video_path:
-            return api_response(success=False, error="未提供视频路径")
-        
-        if not os.path.exists(video_path):
-            return api_response(success=False, error="视频文件不存在")
-        
-        # 自动检测区域
-        detected_regions = []
-        if auto_detect or not regions:
-            result = watermark_processor.detect_and_process(
-                video_path,
-                detect_type=detect_type,
-                manual_regions=regions if regions else None,
-                preserve_audio=preserve_audio
-            )
-            
-            return api_response(
-                success=True,
-                data={
-                    "task_id": result.get('task_id', f"watermark_{uuid.uuid4().hex[:8]}"),
-                    "status": "completed" if result.get('success') else "failed",
-                    "output_path": result.get('output_path'),
-                    "output_url": result.get('output_url'),
-                    "detected_regions": result.get('detected_regions', []),
-                    "frames_processed": result.get('frames_processed', 0),
-                    "error": result.get('error')
-                },
-                message="处理完成" if result.get('success') else f"处理失败: {result.get('error')}"
-            )
-        
-        # 手动指定区域处理
-        task_id = f"watermark_{uuid.uuid4().hex[:8]}"
-        output_filename = f"{task_id}.mp4"
-        
-        result = watermark_processor.process_video(
-            video_path,
-            regions,
-            preserve_audio=preserve_audio,
-            output_filename=output_filename
-        )
-        
-        return api_response(
-            success=True,
-            data={
-                "task_id": task_id,
-                "status": "completed" if result.get('success') else "failed",
-                "output_path": result.get('output_path'),
-                "output_url": result.get('output_url'),
-                "frames_processed": result.get('frames_processed', 0),
-                "regions_removed": len(regions),
-                "error": result.get('error')
-            },
-            message="处理完成" if result.get('success') else f"处理失败: {result.get('error')}"
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/batch-remove', methods=['POST'])
-def batch_remove():
-    """
-    批量去除视频水印/字幕
-    
-    请求方式: JSON
-    
-    请求体:
-    {
-        "videos": [
-            {
-                "video_path": "/path/to/video1.mp4",
-                "regions": [{"x": 100, "y": 50, "width": 200, "height": 40}]
-            },
-            {
-                "video_path": "/path/to/video2.mp4"
-            }
-        ],
-        "default_regions": [{"x": 0, "y": 900, "width": 1920, "height": 80}],  // 默认区域
-        "detect_type": "all"  // watermark/subtitle/all
-    }
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "task_id": "batch_xxx",
-            "status": "processing",
-            "total_videos": 2,
-            "status_url": "/api/batch-status/batch_xxx"
-        }
-    }
-    """
-    try:
-        data = request.get_json()
-        
-        videos = data.get('videos', [])
-        default_regions = data.get('default_regions', [])
-        detect_type = data.get('detect_type', 'all')
-        
-        if not videos:
-            return api_response(success=False, error="未提供视频列表")
-        
-        # 验证视频
-        valid_videos = []
-        for v in videos:
-            video_path = v.get('video_path')
-            if video_path and os.path.exists(video_path):
-                valid_videos.append({
-                    "video_path": video_path,
-                    "regions": v.get('regions', default_regions)
-                })
-        
-        if not valid_videos:
-            return api_response(success=False, error="没有有效的视频文件")
-        
-        # 创建批量任务
-        task_id = batch_processor.create_batch_task(valid_videos, default_regions)
-        
-        # 启动处理
-        batch_processor.start_batch(task_id)
-        
-        return api_response(
-            success=True,
-            data={
-                "task_id": task_id,
-                "status": "processing",
-                "total_videos": len(valid_videos),
-                "status_url": f"/api/batch-status/{task_id}"
-            },
-            message=f"已创建批量任务，处理 {len(valid_videos)} 个视频"
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/batch-status/<task_id>', methods=['GET'])
-def batch_status(task_id):
-    """
-    查询批量处理状态
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "task_id": "batch_xxx",
-            "status": "processing",  // pending/processing/completed/failed/cancelled
-            "progress": 50.0,
-            "completed": 1,
-            "failed": 0,
-            "total": 2,
-            "jobs": [...]
-        }
-    }
-    """
-    try:
-        status = batch_processor.get_task_status(task_id)
-        
-        if not status:
-            return api_response(success=False, error="任务不存在")
-        
-        return api_response(
-            success=True,
-            data=status
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/batch-cancel/<task_id>', methods=['POST'])
-def batch_cancel(task_id):
-    """取消批量任务"""
-    try:
-        success = batch_processor.cancel_task(task_id)
-        
-        if success:
-            return api_response(success=True, message="任务已取消")
-        else:
-            return api_response(success=False, error="无法取消任务")
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/batch-list', methods=['GET'])
-def batch_list():
-    """
-    列出所有批量任务
-    
-    查询参数:
-        - status: 过滤状态 (pending/processing/completed/failed/cancelled)
-    """
-    try:
-        status_filter = request.args.get('status')
-        
-        status_map = {
-            'pending': BatchStatus.PENDING,
-            'processing': BatchStatus.PROCESSING,
-            'completed': BatchStatus.COMPLETED,
-            'failed': BatchStatus.FAILED,
-            'cancelled': BatchStatus.CANCELLED
-        }
-        
-        status = status_map.get(status_filter) if status_filter else None
-        tasks = batch_processor.list_tasks(status)
-        
-        return api_response(
-            success=True,
-            data={
-                "count": len(tasks),
-                "tasks": tasks
-            }
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
-@app.route('/api/detect-all', methods=['POST'])
-def detect_all():
-    """
-    同时检测水印和字幕区域
-    
-    请求方式: 同 /api/detect-watermark
-    
-    返回:
-    {
-        "success": true,
-        "data": {
-            "watermarks": [...],
-            "subtitles": [...],
-            "all_regions": [...],
-            "frame_info": {...}
-        }
-    }
-    """
-    try:
-        frame = None
-        frame_info = {}
-        
-        # 复用detect_watermark的逻辑获取帧
-        if 'file' in request.files:
-            file = request.files['file']
-            if not file.filename:
-                return api_response(success=False, error="未上传文件")
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            unique_id = uuid.uuid4().hex[:8]
-            ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
-            temp_path = config.TEMP_DIR / f"detect_{timestamp}_{unique_id}.{ext}"
-            file.save(str(temp_path))
-            
-            if ext in ['jpg', 'jpeg', 'png', 'bmp']:
-                frame = cv2.imread(str(temp_path))
-                if frame is not None:
-                    frame_info = {"width": frame.shape[1], "height": frame.shape[0]}
-            else:
-                cap = cv2.VideoCapture(str(temp_path))
-                if cap.isOpened():
-                    frame_info = {
-                        "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                        "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                        "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    }
-                    frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-                    ret, frame = cap.read()
-                    cap.release()
-            
-            try:
-                temp_path.unlink()
-            except:
-                pass
-        
-        elif request.is_json:
-            data = request.get_json()
-            video_path = data.get('video_path')
-            
-            if not video_path:
-                return api_response(success=False, error="未提供视频路径")
-            
-            if not os.path.exists(video_path):
-                return api_response(success=False, error="视频文件不存在")
-            
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                return api_response(success=False, error="无法打开视频")
-            
-            frame_info = {
-                "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-                "fps": cap.get(cv2.CAP_PROP_FPS)
-            }
-            
-            frame_no = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-            ret, frame = cap.read()
-            cap.release()
-        
-        else:
-            return api_response(success=False, error="请上传文件或提供视频路径")
-        
-        if frame is None:
-            return api_response(success=False, error="无法读取视频帧")
-        
-        # 同时检测水印和字幕
-        processor = WatermarkProcessor()
-        result = processor.detect_all(frame)
-        
-        return api_response(
-            success=True,
-            data={
-                "watermarks": result['watermarks'],
-                "subtitles": result['subtitles'],
-                "all_regions": result['all_regions'],
-                "frame_info": frame_info,
-                "total_regions": len(result['all_regions'])
-            },
-            message=f"检测到 {len(result['watermarks'])} 个水印, {len(result['subtitles'])} 个字幕"
-        )
-        
-    except Exception as e:
-        traceback.print_exc()
-        return api_response(success=False, error=str(e))
-
-
 # ==================== 错误处理 ====================
 
 @app.errorhandler(413)
@@ -1595,24 +915,566 @@ def internal_error(error):
     return api_response(success=False, error="服务器内部错误"), 500
 
 
+# ==================== AI字幕生成API ====================
+
+@app.route('/generate-subtitles', methods=['POST'])
+def generate_subtitles():
+    """
+    字幕生成接口
+    接收视频文件，使用语音识别生成SRT格式字幕
+    
+    请求方式: multipart/form-data 或 JSON
+    
+    方式1 - 文件上传:
+        - video: 视频文件
+    
+    方式2 - JSON:
+        {
+            "video_path": "/path/to/video.mp4",
+            "use_whisper": true  // 可选，是否使用Whisper
+        }
+    
+    返回:
+    {
+        "success": true,
+        "data": {
+            "srt_content": "...",  // SRT格式字幕（无标点）
+            "segments": [...],
+            "language": "zh",
+            "duration": 120.5,
+            "simulated": false
+        }
+    }
+    """
+    try:
+        video_path = None
+        use_whisper = True
+        
+        # 方式1: 文件上传
+        if 'video' in request.files:
+            file = request.files['video']
+            if file.filename and allowed_video_file(file.filename):
+                result = save_upload_file(file, prefix="subtitle_video")
+                if result:
+                    video_path = result["path"]
+                    use_whisper = request.form.get('use_whisper', 'true').lower() != 'false'
+        
+        # 方式2: JSON
+        elif request.is_json:
+            data = request.get_json()
+            video_path = data.get('video_path')
+            use_whisper = data.get('use_whisper', True)
+        
+        if not video_path:
+            return api_response(success=False, error="未提供视频文件")
+        
+        if not os.path.exists(video_path):
+            return api_response(success=False, error="视频文件不存在")
+        
+        # 生成字幕
+        result = generate_srt_from_audio(video_path, use_whisper=use_whisper)
+        
+        if result.get("success"):
+            return api_response(
+                success=True,
+                data={
+                    "srt_content": result["srt_content"],
+                    "segments": result.get("segments", []),
+                    "language": result.get("language", "zh"),
+                    "duration": result.get("duration", 0),
+                    "simulated": result.get("simulated", False),
+                    "subtitle_count": len(result.get("segments", []))
+                },
+                message="字幕生成成功"
+            )
+        else:
+            return api_response(
+                success=False,
+                error=result.get("error", "字幕生成失败")
+            )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+@app.route('/subtitles/srt', methods=['POST'])
+def get_srt_content():
+    """
+    获取SRT格式字幕内容（用于预览）
+    
+    请求体:
+    {
+        "segments": [
+            {"start": 0.0, "end": 3.0, "text": "你好"},
+            ...
+        ],
+        "no_punctuation": true  // 是否去除标点
+    }
+    """
+    try:
+        data = request.get_json()
+        segments = data.get('segments', [])
+        no_punctuation = data.get('no_punctuation', True)
+        
+        if not segments:
+            return api_response(success=False, error="未提供字幕片段")
+        
+        srt_lines = []
+        for i, seg in enumerate(segments, 1):
+            start = seg.get('start', 0)
+            end = seg.get('end', 0)
+            text = seg.get('text', '')
+            
+            if no_punctuation:
+                text = remove_punctuation(text)
+            
+            srt_lines.append(f"{i}")
+            srt_lines.append(f"{format_srt_time(start)} --> {format_srt_time(end)}")
+            srt_lines.append(text)
+            srt_lines.append("")
+        
+        srt_content = "\n".join(srt_lines)
+        
+        return api_response(
+            success=True,
+            data={
+                "srt_content": srt_content,
+                "segment_count": len(segments)
+            }
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+# ==================== AI剪辑建议API ====================
+
+@app.route('/suggest', methods=['POST'])
+def ai_clipping_suggest():
+    """
+    AI剪辑建议接口
+    根据视频内容描述生成剪辑建议
+    
+    请求体:
+    {
+        "content_description": "视频内容描述...",
+        "episode_count": 1,        // 当前集数
+        "is_first_episode": true,  // 是否是首集
+        "total_duration": 90      // 视频总时长（秒）
+    }
+    
+    返回:
+    {
+        "success": true,
+        "data": {
+            "duration": {
+                "min": 60,
+                "recommended": 120,
+                "is_first_episode": true
+            },
+            "speed": {
+                "base_rate": 1.25,
+                "range": [1.2, 1.3]
+            },
+            "bgm": {
+                "min_changes": 2,
+                "suggested_positions": [...]
+            },
+            "segments": [...],
+            "rhythm": {...},
+            "transitions": [...],
+            "emotions": [...]
+        },
+        "warnings": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        content_description = data.get('content_description', '').strip()
+        episode_count = data.get('episode_count', 1)
+        is_first_episode = data.get('is_first_episode', False)
+        total_duration = data.get('total_duration', 0)
+        
+        if not content_description:
+            return api_response(success=False, error="内容描述不能为空")
+        
+        # 生成剪辑建议
+        result = generate_clipping_suggestions(
+            content_description=content_description,
+            episode_count=episode_count,
+            is_first_episode=is_first_episode,
+            total_duration=total_duration
+        )
+        
+        return api_response(
+            success=True,
+            data=result.get("suggestions", {}),
+            warnings=result.get("warnings", []),
+            metadata=result.get("metadata", {})
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+@app.route('/suggest/validate', methods=['POST'])
+def validate_clipping_params():
+    """
+    验证剪辑参数是否符合要求
+    
+    请求体:
+    {
+        "duration": 90,
+        "episode_count": 1,
+        "is_first_episode": false,
+        "bgm_changes": 3,
+        "speech_rate": 1.25
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        duration = data.get('duration', 0)
+        episode_count = data.get('episode_count', 1)
+        is_first_episode = data.get('is_first_episode', False)
+        bgm_changes = data.get('bgm_changes', 0)
+        speech_rate = data.get('speech_rate', 1.0)
+        
+        warnings = []
+        passed = True
+        
+        # 验证时长
+        min_duration = 120 if is_first_episode else 60
+        if duration < min_duration:
+            warnings.append(f"⚠️ 时长不足：首集需≥{min_duration}秒，当前{duration}秒")
+            passed = False
+        else:
+            warnings.append(f"✅ 时长合格：{duration}秒")
+        
+        # 验证BGM变换
+        if bgm_changes < 2:
+            warnings.append(f"⚠️ BGM变换不足：每集需≥2次，当前{bgm_changes}次")
+            passed = False
+        else:
+            warnings.append(f"✅ BGM变换合格：{bgm_changes}次")
+        
+        # 验证语速
+        if 1.2 <= speech_rate <= 1.3:
+            warnings.append(f"✅ 语速合格：{speech_rate}倍")
+        else:
+            warnings.append(f"⚠️ 语速建议：控制在1.2-1.3倍，当前{speech_rate}倍")
+        
+        return api_response(
+            success=True,
+            data={
+                "passed": passed,
+                "checks": {
+                    "duration": duration >= min_duration,
+                    "bgm_changes": bgm_changes >= 2,
+                    "speech_rate": 1.2 <= speech_rate <= 1.3
+                },
+                "warnings": warnings
+            }
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+# ==================== 人物一致性检测API ====================
+
+@app.route('/check-consistency', methods=['POST'])
+def check_character_consistency():
+    """
+    人物一致性检测接口
+    接收多帧图片或视频，检测人物特征一致性
+    
+    请求方式: multipart/form-data 或 JSON
+    
+    方式1 - 文件上传:
+        - images: 多张图片文件
+        - video: 视频文件（可选，将提取帧）
+        - frame_count: 提取帧数量（默认8）
+    
+    方式2 - JSON:
+        {
+            "images": [
+                {"url": "http://...", "frame_id": 1},
+                {"path": "/path/to/image.jpg", "frame_id": 2}
+            ],
+            "video_path": "/path/to/video.mp4"  // 可选
+        }
+    
+    返回:
+    {
+        "success": true,
+        "data": {
+            "consistency_score": 85.5,
+            "is_consistent": true,
+            "grade": "A 良好",
+            "features": {
+                "face_shape": {...},
+                "skin_tone": {...}
+            },
+            "issues": [...],
+            "recommendations": [...]
+        }
+    }
+    """
+    try:
+        images = []
+        video_path = None
+        frame_count = 8
+        
+        # 方式1: 文件上传
+        if 'images' in request.files:
+            files = request.files.getlist('images')
+            for i, file in enumerate(files):
+                if file.filename:
+                    result = save_upload_file(file, prefix="consistency_check")
+                    if result:
+                        images.append({
+                            "path": result["path"],
+                            "frame_id": i + 1
+                        })
+            
+            # 视频帧提取（如果提供了视频）
+            if 'video' in request.files:
+                video_file = request.files['video']
+                if video_file.filename and allowed_video_file(video_file.filename):
+                    video_result = save_upload_file(video_file, prefix="consistency_video")
+                    if video_result:
+                        video_path = video_result["path"]
+                        frame_count = int(request.form.get('frame_count', 8))
+        
+        # 方式2: JSON
+        elif request.is_json:
+            data = request.get_json()
+            images = data.get('images', [])
+            video_path = data.get('video_path')
+            frame_count = data.get('frame_count', 8)
+        
+        if not images:
+            return api_response(success=False, error="未提供图片文件")
+        
+        # 如果提供了视频，提取帧
+        if video_path and os.path.exists(video_path):
+            extracted_frames = extract_video_frames(video_path, frame_count)
+            images.extend(extracted_frames)
+        
+        # 检测一致性
+        result = detect_character_consistency(images)
+        
+        return api_response(
+            success=result.get("success", False),
+            data={
+                "consistency_score": result.get("consistency_score", 0),
+                "is_consistent": result.get("is_consistent", False),
+                "grade": result.get("grade", "未知"),
+                "features": result.get("features", {}),
+                "issues": result.get("issues", []),
+                "recommendations": result.get("recommendations", []),
+                "checked_frames": result.get("checked_frames", len(images))
+            },
+            message="一致性检测完成" if result.get("success") else "检测失败"
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+def extract_video_frames(video_path: str, frame_count: int = 8) -> List[Dict]:
+    """从视频中提取帧"""
+    frames = []
+    try:
+        # 获取视频时长
+        duration = get_video_duration(video_path)
+        
+        # 计算帧间隔
+        interval = duration / (frame_count + 1)
+        
+        for i in range(1, frame_count + 1):
+            timestamp = interval * i
+            
+            # 生成帧图片路径
+            frame_path = video_path.replace('.mp4', f'_frame_{i}.jpg')
+            frame_path = frame_path.replace('.mov', f'_frame_{i}.jpg')
+            
+            # 提取帧
+            cmd = [
+                'ffmpeg', '-y', '-ss', str(timestamp),
+                '-i', video_path,
+                '-vframes', '1', '-q:v', '2',
+                frame_path
+            ]
+            subprocess.run(cmd, capture_output=True, timeout=30)
+            
+            if os.path.exists(frame_path):
+                frames.append({
+                    "path": frame_path,
+                    "frame_id": i,
+                    "timestamp": timestamp
+                })
+        
+    except Exception as e:
+        print(f"提取视频帧失败: {e}")
+    
+    return frames
+
+
+# ==================== 增强剪辑解析API ====================
+
+@app.route('/parse', methods=['POST'])
+def enhanced_parse():
+    """
+    增强AI剪辑解析接口
+    支持更多剪辑指令：
+    - 节奏控制（快/慢/渐变）
+    - 转场效果（淡入淡出/闪白）
+    - 情绪标签（紧张/温馨/悬疑）
+    
+    请求体:
+    {
+        "text": "剪辑要求文本...",
+        "total_duration": 90  // 可选，视频总时长
+    }
+    
+    返回:
+    {
+        "success": true,
+        "data": {
+            "instructions": {
+                "rhythm": [...],
+                "transitions": [...],
+                "emotions": [...],
+                "segments": [...],
+                "effects": [...],
+                "bgm": {...}
+            },
+            "summary": "..."
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        text = data.get('text', '').strip()
+        total_duration = data.get('total_duration', 0)
+        
+        if not text:
+            return api_response(success=False, error="剪辑要求不能为空")
+        
+        # 解析指令
+        result = enhanced_parse_instructions(text, total_duration)
+        
+        return api_response(
+            success=result.get("success", False),
+            data={
+                "instructions": result.get("instructions", {}),
+                "summary": result.get("summary", ""),
+                "raw_segments": result.get("raw_segments", [])
+            }
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
+@app.route('/parse/quick', methods=['POST'])
+def quick_parse():
+    """
+    快速剪辑解析（简化版）
+    
+    请求体:
+    {
+        "keywords": ["开头", "震撼", "快节奏", "结尾", "悬疑"]
+    }
+    """
+    try:
+        data = request.get_json()
+        keywords = data.get('keywords', [])
+        
+        if not keywords:
+            return api_response(success=False, error="未提供关键词")
+        
+        # 快速组合为文本
+        text = " ".join(keywords)
+        result = enhanced_parse_instructions(text)
+        
+        return api_response(
+            success=True,
+            data={
+                "keywords": keywords,
+                "instructions": result.get("instructions", {}),
+                "summary": result.get("summary", "")
+            }
+        )
+        
+    except Exception as e:
+        traceback.print_exc()
+        return api_response(success=False, error=str(e))
+
+
 # ==================== 主程序 ====================
+
+
+# ==================== 前端静态文件服务 ====================
+
+@app.route('/')
+def serve_index():
+    """返回前端首页"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    return send_from_directory(static_dir, 'index.html')
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """返回前端静态资源"""
+    static_dir = Path(__file__).parent.parent / 'static' / 'assets'
+    return send_from_directory(static_dir, filename)
+
+@app.route('/<path:path>')
+def serve_spa(path):
+    """SPA路由 - 所有未匹配的路由返回index.html"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    file_path = static_dir / path
+    if file_path.exists():
+        return send_from_directory(static_dir, path)
+    return send_from_directory(static_dir, 'index.html')
+
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("在线剪辑平台 - 后端API服务")
-    print("=" * 50)
-    print(f"服务地址: http://{config.FLASK_HOST}:{config.FLASK_PORT}")
-    print(f"上传目录: {config.UPLOAD_DIR}")
-    print(f"输出目录: {config.OUTPUT_DIR}")
+    print("AI智能剪辑平台 - 后端服务")
     print("=" * 50)
     print("API端点:")
+    print("  [上传]")
     print("  POST /upload/videos   - 上传视频文件")
     print("  POST /upload/script   - 上传剧本")
+    print("  [剪辑]")
     print("  POST /process         - 开始剪辑处理")
     print("  GET  /status/<task_id> - 查询进度")
     print("  GET  /download/<task_id> - 下载成片")
+    print("  [BGM]")
     print("  POST /bgm/search      - 搜索BGM")
     print("  GET  /bgm/preview/<id> - 试听BGM")
+    print("  [AI字幕]")
+    print("  POST /generate-subtitles - 生成字幕")
+    print("  POST /subtitles/srt   - 获取SRT格式")
+    print("  [AI剪辑建议]")
+    print("  POST /suggest          - AI剪辑建议")
+    print("  POST /suggest/validate - 验证剪辑参数")
+    print("  [人物一致性]")
+    print("  POST /check-consistency - 检测人物一致性")
+    print("  [增强解析]")
+    print("  POST /parse            - 增强剪辑解析")
+    print("  POST /parse/quick      - 快速解析")
     print("=" * 50)
     
     app.run(
