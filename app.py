@@ -2532,6 +2532,10 @@ def serve_app():
 def serve_assets(filename):
     return send_from_directory("static/assets", filename)
 
+@app.route("/favicon.svg")
+def serve_favicon():
+    return send_from_directory("static", "favicon.svg")
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
