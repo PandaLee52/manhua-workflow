@@ -1,0 +1,8 @@
+[build]
+  command = "cd 在线剪辑平台/frontend && npm install && npm run build"
+  publish = "在线剪辑平台/frontend/dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
