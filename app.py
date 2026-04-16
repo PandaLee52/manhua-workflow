@@ -1663,35 +1663,10 @@ def get_preset(name):
 
 @app.route('/')
 def index():
-    return jsonify({
-        'status': 'ok',
-        'message': 'AI剪辑平台API已启动',
-        'endpoints': [
-            {'path': '/health', 'method': 'GET', 'description': '健康检查'},
-            {'path': '/upload', 'method': 'POST', 'description': '上传视频'},
-            {'path': '/merge', 'method': 'POST', 'description': '合并视频'},
-            {'path': '/search-bgm', 'method': 'GET', 'description': '搜索BGM'},
-            {'path': '/process', 'method': 'POST', 'description': '处理视频'},
-            {'path': '/suggest', 'method': 'POST', 'description': 'AI剪辑建议'},
-            {'path': '/check-consistency', 'method': 'POST', 'description': '人物一致性检测'},
-            {'path': '/generate-subtitles', 'method': 'POST', 'description': '字幕生成'},
-            {'path': '/detect-watermark', 'method': 'POST', 'description': '水印检测'},
-            {'path': '/remove-watermark', 'method': 'POST', 'description': '水印去除'},
-            {'path': '/parse', 'method': 'POST', 'description': '解析剪辑要求'},
-            {'path': '/presets', 'method': 'GET', 'description': '获取预设模板'},
-            {'path': '/download/<filename>', 'method': 'GET', 'description': '下载文件'},
-            {'path': '/video/<video_id>', 'method': 'GET', 'description': '获取视频信息'},
-            {'path': '/list-videos', 'method': 'GET', 'description': '列出视频'},
-            {'path': '/delete/<video_id>', 'method': 'DELETE', 'description': '删除视频'}
-        ],
-        'ai_features': [
-            'AI剪辑建议 (/suggest)',
-            '人物一致性检测 (/check-consistency)',
-            '字幕生成 (/generate-subtitles)',
-            '水印检测 (/detect-watermark)',
-            '水印去除 (/remove-watermark)'
-        ]
-    })
+    # 返回前端页面，让Vue Router正常工作
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    static_path = os.path.join(base_dir, "static")
+    return send_from_directory(static_path, "index.html")
 
 
 @app.route('/health')
