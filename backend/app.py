@@ -26,6 +26,29 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+# 获取项目根目录
+BASE_DIR = Path(__file__).parent.parent
+STATIC_DIR = BASE_DIR / 'static'
+
+# 静态文件服务路由
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """服务静态文件"""
+    return send_from_directory(str(STATIC_DIR), filename)
+
+@app.route('/')
+def index():
+    """首页"""
+    return send_from_directory(str(STATIC_DIR), 'index.html')
+
+@app.route('/<path:filename>')
+def spa_router(filename):
+    """SPA路由 - 支持前端路由"""
+    file_path = STATIC_DIR / filename
+    if file_path.exists() and file_path.is_file():
+        return send_from_directory(str(STATIC_DIR), filename)
+    return send_from_directory(str(STATIC_DIR), 'index.html')
+
 # 确保目录存在
 config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
