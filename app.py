@@ -2526,15 +2526,21 @@ def remove_watermark_ffmpeg_preview():
 # 前端静态文件服务
 @app.route("/app")
 def serve_app():
-    return send_from_directory("static", "index.html")
+    import os
+    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+    return send_from_directory(static_path, "index.html")
 
 @app.route("/app/assets/<path:filename>")
 def serve_assets(filename):
-    return send_from_directory("static/assets", filename)
+    import os
+    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "assets")
+    return send_from_directory(static_path, filename)
 
 @app.route("/favicon.svg")
 def serve_favicon():
-    return send_from_directory("static", "favicon.svg")
+    import os
+    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+    return send_from_directory(static_path, "favicon.svg")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
