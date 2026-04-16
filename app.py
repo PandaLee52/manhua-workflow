@@ -38,6 +38,12 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
+# 添加全局错误处理器用于调试
+@app.errorhandler(500)
+def internal_error(error):
+    import traceback
+    return {"error": str(error), "trace": traceback.format_exc()}, 500
+
 # ==================== 配置 ====================
 UPLOAD_FOLDER = '/tmp/video_uploads'
 PROCESSED_FOLDER = '/tmp/video_processed'
@@ -2527,19 +2533,28 @@ def remove_watermark_ffmpeg_preview():
 @app.route("/app")
 def serve_app():
     import os
-    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-    return send_from_directory(static_path, "index.html")
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+    static_path = os.path.join(base_dir, "static")
+    try:
+        return send_from_directory(static_path, "index.html")
+    except Exception as e:
+        import traceback
+        app.logger.error(f"Error serving app: {e}")
+        app.logger.error(traceback.format_exc())
+        return {"error": str(e)}, 500
 
 @app.route("/app/assets/<path:filename>")
 def serve_assets(filename):
     import os
-    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "assets")
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+    static_path = os.path.join(base_dir, "static", "assets")
     return send_from_directory(static_path, filename)
 
 @app.route("/favicon.svg")
 def serve_favicon():
     import os
-    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+    static_path = os.path.join(base_dir, "static")
     return send_from_directory(static_path, "favicon.svg")
 
 if __name__ == '__main__':
