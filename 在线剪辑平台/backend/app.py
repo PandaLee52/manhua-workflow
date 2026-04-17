@@ -23,7 +23,6 @@ from typing import List, Dict, Any
 try:
     # 尝试绝对导入（Docker环境）
     from backend import config
-    from backend.tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
     from backend.ai_requirements import AIRequirementsParser, parse_requirements, parse_to_json, list_preset_templates, PRESET_TEMPLATES
     from backend.ai_features import (
         generate_srt_from_audio, simulate_subtitles, get_video_duration,
@@ -33,13 +32,26 @@ try:
 except ImportError:
     # 回退到相对导入（本地开发环境）
     import config
-    from tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
     from ai_requirements import AIRequirementsParser, parse_requirements, parse_to_json, list_preset_templates, PRESET_TEMPLATES
     from ai_features import (
         generate_srt_from_audio, simulate_subtitles, get_video_duration,
         generate_clipping_suggestions, enhanced_parse_instructions,
         detect_character_consistency, convert_to_srt_no_punct, remove_punctuation, format_srt_time
     )
+
+# Celery相关导入（可选，无Redis时仍可运行基础功能）
+try:
+    try:
+        from backend.tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
+    except ImportError:
+        from tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
+except Exception as e:
+    print(f"警告：Celery任务模块加载失败（{e}），部分功能将不可用")
+    celery_app = None
+    process_video_edit = None
+    status_store = None
+    search_bgm_by_tags = None
+    get_video_info = None
 
 # ==================== Flask应用初始化 ====================
 
