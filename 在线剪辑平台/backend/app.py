@@ -1565,6 +1565,13 @@ def watermark_download(task_id):
 
 # ==================== 前端静态文件服务 ====================
 
+@app.route('/watermark')
+@app.route('/watermark/')
+def serve_watermark():
+    """返回去水印工具页面"""
+    static_dir = Path(__file__).parent.parent / 'static'
+    return send_from_directory(static_dir / 'watermark', 'index.html')
+
 @app.route('/')
 def serve_index():
     """返回前端首页"""
