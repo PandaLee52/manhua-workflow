@@ -19,4 +19,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
+# 切换工作目录到backend，这样相对导入可以正常工作
+WORKDIR /app
 CMD ["python", "backend/app.py"]
