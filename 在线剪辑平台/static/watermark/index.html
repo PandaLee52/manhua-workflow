@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>去水印工具</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; color: #fff; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 15px 0; }
+        header h1 { font-size: 1.5rem; background: linear-gradient(90deg, #00d9ff, #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        a { color: #00d9ff; }
+        .main { display: grid; grid-template-columns: 1fr 250px; gap: 15px; }
+        @media (max-width: 700px) { .main { grid-template-columns: 1fr; } }
+        .panel { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; }
+        .upload { border: 2px dashed #00d9ff; border-radius: 10px; padding: 30px; text-align: center; cursor: pointer; }
+        .upload:hover { background: rgba(0,217,255,0.1); }
+        .video-box { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+        video { width: 100%; display: block; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+        .btn-pri { background: linear-gradient(135deg, #00d9ff, #00ff88); color: #000; font-weight: 600; }
+        .btn-sec { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .info { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; font-size: 0.8rem; margin-top: 10px; }
+        .info-row { display: flex; justify-content: space-between; padding: 2px 0; }
+        .progress { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #00d9ff, #00ff88); transition: width 0.3s; }
+        .msg { padding: 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 10px; text-align: center; }
+        .msg-ok { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .msg-err { background: rgba(255,107,107,0.2); color: #ff6b6b; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="container">
+        <header><a href="/">← 返回</a><h1>🎬 视频去水印</h1></header>
+        <div class="main">
+            <div class="panel">
+                <div v-if="!videoUrl" class="upload" @click="$refs.file.click()" @dragover.prevent @drop.prevent="drop">
+                    <div style="font-size:2rem">📤</div>
+                    <div>点击或拖拽上传视频</div>
+                    <input type="file" ref="file" @change="select" accept="video/*" hidden>
+                </div>
+                <div v-else class="video-box">
+                    <video ref="player" :src="videoUrl" @loadedmetadata="loaded" controls></video>
+                    <canvas ref="canvas" @mousedown="start" @mousemove="move" @mouseup="end"></canvas>
+                </div>
+                <div v-if="info.width" class="info">
+                    <div class="info-row"><span>分辨率</span><span>{{info.width}}x{{info.height}}</span></div>
+                    <div class="info-row"><span>时长</span><span>{{dur(info.duration)}}</span></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div v-if="msg" :class="['msg', msgOk ? 'msg-ok' : 'msg-err']">{{msg}}</div>
+                <div v-if="regions.length">已选 {{regions.length}} 个区域</div>
+                <button class="btn btn-pri" @click="detect" :disabled="!taskId">🔍 自动检测</button>
+                <button class="btn btn-pri" @click="remove" :disabled="!regions.length">✨ 开始去除</button>
+                <button class="btn btn-sec" @click="reset">🔄 重新开始</button>
+                <div v-if="processing" class="progress"><div class="progress-bar" :style="{width:prog+'%'}"></div></div>
+                <a v-if="done" :href="dl" class="btn btn-pri" download>📥 下载视频</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+const {createApp, ref, computed} = Vue;
+const API = window.location.origin;
+createApp({
+    setup() {
+        const file = ref(null), player = ref(null), canvas = ref(null);
+        const videoUrl = ref(null), info = ref({}), taskId = ref(null), regions = ref([]);
+        const msg = ref(''), msgOk = ref(true), processing = ref(false), prog = ref(0), done = ref(false);
+        const dl = computed(() => `${API}/api/watermark/download/${taskId.value}`);
+        let drawing = false, sx = 0, sy = 0;
+
+        const select = e => { if (e.target.files[0]) upload(e.target.files[0]); };
+        const drop = e => { if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+        
+        const upload = async f => {
+            videoUrl.value = URL.createObjectURL(f);
+            msg.value = '上传中...';
+            const fd = new FormData();
+            fd.append('video', f);
+            try {
+                const r = await fetch(`${API}/api/watermark/upload`, {method:'POST', body:fd});
+                const d = await r.json();
+                if (d.success) { taskId.value = d.data.task_id; info.value = d.data.video_info; msg.value = '上传成功，请框选区域'; msgOk.value = true; }
+                else { msg.value = d.error || '上传失败'; msgOk.value = false; }
+            } catch(e) { msg.value = '上传失败'; msgOk.value = false; }
+        };
+
+        const loaded = () => {
+            const c = canvas.value, v = player.value;
+            if (c && v) { c.width = v.offsetWidth; c.height = v.offsetHeight; }
+        };
+
+        const drawRegions = () => {
+            const c = canvas.value; if (!c) return;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+            const sx = info.value.width / c.width, sy = info.value.height / c.height;
+            ctx.strokeStyle = '#00ff88'; ctx.fillStyle = 'rgba(0,255,136,0.2)'; ctx.lineWidth = 2;
+            regions.value.forEach(r => { const x = r[0]/sx, y = r[1]/sy, w = r[2]/sx, h = r[3]/sy; ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h); });
+        };
+
+        const start = e => { drawing = true; const r = canvas.value.getBoundingClientRect(); sx = e.clientX - r.left; sy = e.clientY - r.top; };
+        const move = e => {
+            if (!drawing) return;
+            const c = canvas.value, ctx = c.getContext('2d'), r = c.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            ctx.clearRect(0, 0, c.width, c.height); drawRegions();
+            ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 2; ctx.strokeRect(sx, sy, x - sx, y - sy);
+        };
+        const end = e => {
+            if (!drawing) return; drawing = false;
+            const r = canvas.value.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+            const scx = info.value.width / canvas.value.width, scy = info.value.height / canvas.value.height;
+            const rx = Math.min(sx, x) * scx, ry = Math.min(sy, y) * scy, rw = Math.abs(x - sx) * scx, rh = Math.abs(y - sy) * scy;
+            if (rw > 10 && rh > 10) regions.value.push([Math.round(rx), Math.round(ry), Math.round(rw), Math.round(rh)]);
+            drawRegions();
+        };
+
+        const detect = async () => {
+            if (!taskId.value) return;
+            msg.value = '检测中...'; processing.value = true;
+            try {
+                const r = await fetch(`${API}/api/watermark/detect`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({task_id:taskId.value})});
+                const d = await r.json();
+                if (d.success && d.data.regions.length) { regions.value = d.data.regions.map(r => [r.x, r.y, r.width, r.height]); drawRegions(); msg.value = `检测到 ${d.data.count} 个区域`; msgOk.value = true; }
+                else { msg.value = '未检测到水印，请手动框选'; msgOk.value = false; }
+            } catch(e) { msg.value = '检测失败'; msgOk.value = false; }
+            processing.value = false;
+        };
+
+        const remove = async () => {
+            if (!taskId.value || !regions.value.length) return;
+            processing.value = true; prog.value = 20; msg.value = '处理中...';
+            try {
+                const r = await fetch(`${API}/api/watermark/remove`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({task_id:taskId.value, regions:regions.value})});
+                const d = await r.json();
+                if (d.success) { prog.value = 100; msg.value = '处理完成'; msgOk.value = true; done.value = true; }
+                else { msg.value = d.error || '处理失败'; msgOk.value = false; }
+            } catch(e) { msg.value = '处理失败'; msgOk.value = false; }
+            processing.value = false;
+        };
+
+        const reset = () => { videoUrl.value = null; taskId.value = null; regions.value = []; info.value = {}; done.value = false; msg.value = ''; };
+        const dur = s => { if (!s) return '0:00'; const m = Math.floor(s/60); return `${m}:${String(Math.floor(s%60)).padStart(2,'0')}`; };
+
+        return { file, player, canvas, videoUrl, info, taskId, regions, msg, msgOk, processing, prog, done, dl, select, drop, loaded, start, move, end, detect, remove, reset, dur };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

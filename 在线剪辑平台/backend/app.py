@@ -1422,6 +1422,144 @@ def quick_parse():
         return api_response(success=False, error=str(e))
 
 
+# ==================== 去水印功能 API ====================
+
+try:
+    import cv2
+    WATERMARK_CV2_AVAILABLE = True
+except ImportError:
+    WATERMARK_CV2_AVAILABLE = False
+
+watermark_tasks = {}
+
+@app.route('/api/watermark/upload', methods=['POST'])
+def watermark_upload():
+    """上传视频用于去水印"""
+    try:
+        if 'video' not in request.files:
+            return api_response(success=False, error='No video file')
+        file = request.files['video']
+        if file.filename == '':
+            return api_response(success=False, error='No file selected')
+        
+        task_id = str(uuid.uuid4())
+        filename = secure_filename(file.filename)
+        video_path = config.UPLOAD_DIR / f"wm_{task_id}_{filename}"
+        file.save(video_path)
+        
+        video_info = {}
+        try:
+            cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', str(video_path)]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                info = json.loads(result.stdout)
+                for s in info.get('streams', []):
+                    if s.get('codec_type') == 'video':
+                        fps_str = s.get('r_frame_rate', '0/1')
+                        fps = eval(fps_str) if '/' in fps_str else float(fps_str)
+                        video_info = {'width': int(s.get('width', 0)), 'height': int(s.get('height', 0)),
+                                      'duration': float(info.get('format', {}).get('duration', 0)), 'fps': round(fps, 2)}
+                        break
+        except: pass
+        
+        watermark_tasks[task_id] = {'video_path': str(video_path), 'output_path': None, 'regions': [], 'status': 'uploaded', 'video_info': video_info}
+        return api_response(success=True, data={'task_id': task_id, 'video_info': video_info})
+    except Exception as e:
+        return api_response(success=False, error=str(e))
+
+@app.route('/api/watermark/detect', methods=['POST'])
+def watermark_detect():
+    """检测水印区域"""
+    try:
+        data = request.json
+        if not data or 'task_id' not in data:
+            return api_response(success=False, error='task_id required')
+        task_id = data['task_id']
+        if task_id not in watermark_tasks:
+            return api_response(success=False, error='Task not found')
+        
+        task = watermark_tasks[task_id]
+        regions = []
+        
+        if WATERMARK_CV2_AVAILABLE:
+            cap = cv2.VideoCapture(task['video_path'])
+            if cap.isOpened():
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                for i in range(1, min(6, total)):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, int(i * total / 6))
+                    ret, frame = cap.read()
+                    if not ret: continue
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    edges = cv2.Canny(gray, 50, 150)
+                    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (30, 5))
+                    closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+                    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    for c in contours:
+                        x, y, w, h = cv2.boundingRect(c)
+                        if w > width * 0.2 and w / max(h, 1) > 3 and 1000 < w * h < width * height * 0.2:
+                            regions.append({'x': max(0, x - 10), 'y': max(0, y - 5), 'width': min(width - x, w + 20), 'height': min(height - y, h + 10)})
+                cap.release()
+        
+        task['regions'] = regions
+        task['status'] = 'detected'
+        return api_response(success=True, data={'regions': regions, 'count': len(regions)})
+    except Exception as e:
+        return api_response(success=False, error=str(e))
+
+@app.route('/api/watermark/remove', methods=['POST'])
+def watermark_remove():
+    """去除水印"""
+    try:
+        data = request.json
+        if not data or 'task_id' not in data:
+            return api_response(success=False, error='task_id required')
+        task_id = data['task_id']
+        if task_id not in watermark_tasks:
+            return api_response(success=False, error='Task not found')
+        
+        task = watermark_tasks[task_id]
+        regions = data.get('regions', task['regions'])
+        if not regions:
+            return api_response(success=False, error='No regions')
+        
+        output_path = config.OUTPUT_DIR / f"wm_{task_id}_output.mp4"
+        task['status'] = 'processing'
+        
+        filters = []
+        for r in regions:
+            if isinstance(r, dict):
+                x, y, w, h = r.get('x', 0), r.get('y', 0), r.get('width', 100), r.get('height', 50)
+            elif isinstance(r, (list, tuple)) and len(r) >= 4:
+                x, y, w, h = r[:4]
+            else: continue
+            filters.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
+        
+        cmd = ['ffmpeg', '-i', task['video_path'], '-vf', ','.join(filters), '-c:a', 'copy', '-y', str(output_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            task['status'] = 'failed'
+            return api_response(success=False, error=f'FFmpeg error')
+        
+        task['output_path'] = str(output_path)
+        task['status'] = 'completed'
+        return api_response(success=True, data={'task_id': task_id, 'status': 'completed', 'download_url': f'/api/watermark/download/{task_id}'})
+    except Exception as e:
+        return api_response(success=False, error=str(e))
+
+@app.route('/api/watermark/download/<task_id>')
+def watermark_download(task_id):
+    """下载处理后的视频"""
+    if task_id not in watermark_tasks:
+        return api_response(success=False, error='Task not found')
+    task = watermark_tasks[task_id]
+    if task['status'] != 'completed' or not task['output_path']:
+        return api_response(success=False, error='Not ready')
+    return send_file(task['output_path'], mimetype='video/mp4', as_attachment=True)
+
+
 # ==================== 主程序 ====================
 
 
