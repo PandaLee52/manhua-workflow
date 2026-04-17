@@ -20,10 +20,10 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from typing import List, Dict, Any
 
-import config
-from tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
-from ai_requirements import AIRequirementsParser, parse_requirements, parse_to_json, list_preset_templates, PRESET_TEMPLATES
-from ai_features import (
+import backend.config as config
+from backend.tasks import app as celery_app, process_video_edit, status_store, search_bgm_by_tags, get_video_info
+from backend.ai_requirements import AIRequirementsParser, parse_requirements, parse_to_json, list_preset_templates, PRESET_TEMPLATES
+from backend.ai_features import (
     generate_srt_from_audio, simulate_subtitles, get_video_duration,
     generate_clipping_suggestions, enhanced_parse_instructions,
     detect_character_consistency, convert_to_srt_no_punct, remove_punctuation, format_srt_time
