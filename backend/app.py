@@ -90,29 +90,6 @@ def save_upload_file(file, prefix="file"):
     }
 
 
-# ==================== 健康检查 ====================
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """健康检查接口"""
-    api_status = config.get_api_status()
-    
-    return api_response(
-        success=True,
-        data={
-            "service": "在线剪辑平台",
-            "version": "1.0.0",
-            "status": "running",
-            "api_status": api_status,
-            "directories": {
-                "upload": str(config.UPLOAD_DIR),
-                "output": str(config.OUTPUT_DIR),
-                "temp": str(config.TEMP_DIR)
-            }
-        }
-    )
-
-
 # ==================== 视频上传API ====================
 
 @app.route('/upload/videos', methods=['POST'])
@@ -1447,6 +1424,29 @@ def serve_spa(path):
     if file_path.exists():
         return send_from_directory(static_dir, path)
     return send_from_directory(static_dir, 'index.html')
+
+
+# ==================== 健康检查 ====================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """健康检查接口"""
+    api_status = config.get_api_status()
+    
+    return api_response(
+        success=True,
+        data={
+            "service": "在线剪辑平台",
+            "version": "1.0.0",
+            "status": "running",
+            "api_status": api_status,
+            "directories": {
+                "upload": str(config.UPLOAD_DIR),
+                "output": str(config.OUTPUT_DIR),
+                "temp": str(config.TEMP_DIR)
+            }
+        }
+    )
 
 
 if __name__ == '__main__':
