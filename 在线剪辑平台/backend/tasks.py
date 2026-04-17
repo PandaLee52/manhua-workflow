@@ -18,10 +18,16 @@ from celery import Celery
 from celery.signals import task_prerun, task_postrun, worker_ready
 
 # 导入配置
-import config
+try:
+    from backend import config
+except ImportError:
+    import config
 
 # 导入AI剪辑要求解析模块
-from ai_requirements import AIRequirementsParser, parse_requirements
+try:
+    from backend.ai_requirements import AIRequirementsParser, parse_requirements
+except ImportError:
+    from ai_requirements import AIRequirementsParser, parse_requirements
 
 # ==================== Celery应用初始化 ====================
 
