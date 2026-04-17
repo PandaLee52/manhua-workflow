@@ -20,8 +20,8 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 # ==================== Flask配置 ====================
 
 FLASK_HOST = os.environ.get("FLASK_HOST", "0.0.0.0")
-FLASK_PORT = int(os.environ.get("FLASK_PORT", 8890))
-FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+FLASK_PORT = int(os.environ.get("FLASK_PORT") or os.environ.get("PORT", 8890))
+FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 
 # 文件上传配置 - 支持大文件
 MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
