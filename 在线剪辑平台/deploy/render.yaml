@@ -10,11 +10,12 @@ services:
     rootDir: ./
     plan: free
     region: oregon
+    branch: main
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: PORT
-        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: SECRET_KEY
         sync: false
       - key: WEB_CONCURRENCY
