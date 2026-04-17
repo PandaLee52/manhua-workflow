@@ -1593,8 +1593,37 @@ def watermark_download(task_id):
 @app.route('/watermark/')
 def serve_watermark():
     """返回去水印工具页面"""
-    static_dir = Path(__file__).parent.parent / 'static'
-    return send_from_directory(static_dir / 'watermark', 'index.html')
+    # 尝试多种路径
+    possible_paths = [
+        Path(__file__).parent.parent / 'static' / 'watermark' / 'index.html',
+        Path(__file__).parent / 'static' / 'watermark' / 'index.html',
+        Path('/app/static/watermark/index.html'),
+        Path(__file__).parent.parent.parent / 'static' / 'watermark' / 'index.html',
+    ]
+    
+    for html_path in possible_paths:
+        if html_path.exists():
+            return send_from_directory(html_path.parent, html_path.name)
+    
+    # 如果都找不到，返回简单版本
+    return '''
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>视频去水印工具</title>
+</head>
+<body>
+    <h1>视频去水印工具</h1>
+    <p>API端点：</p>
+    <ul>
+        <li>POST /api/watermark/upload - 上传视频</li>
+        <li>POST /api/watermark/detect - 检测水印</li>
+        <li>POST /api/watermark/remove - 去除水印</li>
+    </ul>
+</body>
+</html>
+    '''
 
 @app.route('/')
 def serve_index():
