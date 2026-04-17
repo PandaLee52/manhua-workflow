@@ -1482,3 +1482,257 @@ if __name__ == '__main__':
         port=config.FLASK_PORT,
         debug=config.FLASK_DEBUG
     )
+
+
+# ==================== 水印/字幕去除API ====================
+
+import cv2
+import numpy as np
+
+# 水印任务存储
+watermark_tasks = {}
+WATERMARK_UPLOAD_DIR = config.UPLOAD_DIR / 'watermark_uploads'
+WATERMARK_OUTPUT_DIR = config.OUTPUT_DIR / 'watermark_outputs'
+WATERMARK_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+WATERMARK_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.route('/api/watermark/health', methods=['GET'])
+def watermark_health():
+    """水印去除服务健康检查"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'watermark-remover',
+        'version': '1.0.0'
+    })
+
+
+@app.route('/api/watermark/upload', methods=['POST'])
+def watermark_upload():
+    """上传视频"""
+    if 'video' not in request.files:
+        return jsonify({'error': 'No video file provided'}), 400
+    
+    file = request.files['video']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    task_id = str(uuid.uuid4())
+    video_path = WATERMARK_UPLOAD_DIR / f"{task_id}_{secure_filename(file.filename)}"
+    file.save(video_path)
+    
+    # 获取视频信息
+    video_info = get_watermark_video_info(str(video_path))
+    
+    watermark_tasks[task_id] = {
+        'video_path': str(video_path),
+        'output_path': None,
+        'regions': [],
+        'status': 'uploaded',
+        'video_info': video_info
+    }
+    
+    return jsonify({
+        'task_id': task_id,
+        'video_info': video_info
+    })
+
+
+@app.route('/api/watermark/detect', methods=['POST'])
+def watermark_detect():
+    """智能检测水印/字幕区域"""
+    data = request.json
+    if not data or 'task_id' not in data:
+        return jsonify({'error': 'task_id required'}), 400
+    
+    task_id = data['task_id']
+    if task_id not in watermark_tasks:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    task = watermark_tasks[task_id]
+    video_path = task['video_path']
+    
+    try:
+        regions = detect_watermark_regions_opencv(video_path)
+        task['regions'] = regions
+        task['status'] = 'detected'
+        return jsonify({'regions': regions, 'count': len(regions)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/watermark/remove', methods=['POST'])
+def watermark_remove():
+    """去除水印/字幕"""
+    data = request.json
+    if not data or 'task_id' not in data:
+        return jsonify({'error': 'task_id required'}), 400
+    
+    task_id = data['task_id']
+    if task_id not in watermark_tasks:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    task = watermark_tasks[task_id]
+    regions = data.get('regions', task['regions'])
+    
+    if not regions:
+        return jsonify({'error': 'No regions specified'}), 400
+    
+    output_path = WATERMARK_OUTPUT_DIR / f"{task_id}_output.mp4"
+    task['status'] = 'processing'
+    task['regions'] = regions
+    
+    try:
+        result = process_video_delogo(task['video_path'], str(output_path), regions)
+        task['output_path'] = result
+        task['status'] = 'completed'
+        return jsonify({
+            'task_id': task_id,
+            'status': 'completed',
+            'download_url': f"/api/watermark/download/{task_id}"
+        })
+    except Exception as e:
+        task['status'] = 'failed'
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/watermark/download/<task_id>', methods=['GET'])
+def watermark_download(task_id):
+    """下载处理后的视频"""
+    if task_id not in watermark_tasks:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    task = watermark_tasks[task_id]
+    if task['status'] != 'completed' or not task['output_path']:
+        return jsonify({'error': 'Video not ready'}), 400
+    
+    if not os.path.exists(task['output_path']):
+        return jsonify({'error': 'Output file not found'}), 404
+    
+    return send_file(
+        task['output_path'],
+        mimetype='video/mp4',
+        as_attachment=True,
+        download_name=f'processed_{task_id}.mp4'
+    )
+
+
+def get_watermark_video_info(video_path: str) -> dict:
+    """获取视频信息"""
+    try:
+        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', 
+               '-show_format', '-show_streams', video_path]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            info = json.loads(result.stdout)
+            for stream in info.get('streams', []):
+                if stream.get('codec_type') == 'video':
+                    fps_str = stream.get('r_frame_rate', '0/1')
+                    if '/' in fps_str:
+                        num, den = fps_str.split('/')
+                        fps = float(num) / float(den) if float(den) != 0 else 0
+                    else:
+                        fps = float(fps_str)
+                    return {
+                        'width': int(stream.get('width', 0)),
+                        'height': int(stream.get('height', 0)),
+                        'duration': float(info.get('format', {}).get('duration', 0)),
+                        'fps': round(fps, 2),
+                        'size': int(info.get('format', {}).get('size', 0))
+                    }
+    except Exception:
+        pass
+    return {}
+
+
+def detect_watermark_regions_opencv(video_path: str) -> list:
+    """使用OpenCV智能检测水印/字幕区域"""
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return []
+    
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    sample_frames = min(5, total_frames)
+    frame_indices = [int(i * total_frames / (sample_frames + 1)) for i in range(1, sample_frames + 1)]
+    
+    all_regions = []
+    
+    for idx in frame_indices:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 50, 150)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (30, 5))
+        closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = w / max(h, 1)
+            area = w * h
+            
+            if w > width * 0.2 and aspect_ratio > 3 and area > 1000 and area < width * height * 0.2:
+                x = max(0, x - 10)
+                y = max(0, y - 5)
+                w = min(width - x, w + 20)
+                h = min(height - y, h + 10)
+                all_regions.append({'x': int(x), 'y': int(y), 'width': int(w), 'height': int(h)})
+    
+    cap.release()
+    return merge_watermark_regions(all_regions)
+
+
+def merge_watermark_regions(regions: list) -> list:
+    """合并重叠区域"""
+    if not regions:
+        return []
+    
+    merged = []
+    used = set()
+    
+    for i, r1 in enumerate(regions):
+        if i in used:
+            continue
+        current = r1.copy()
+        for j, r2 in enumerate(regions):
+            if j <= i or j in used:
+                continue
+            if (r1['x'] < r2['x'] + r2['width'] and r1['x'] + r1['width'] > r2['x'] and
+                r1['y'] < r2['y'] + r2['height'] and r1['y'] + r1['height'] > r2['y']):
+                current['x'] = min(current['x'], r2['x'])
+                current['y'] = min(current['y'], r2['y'])
+                current['width'] = max(current['x'] + current['width'], r2['x'] + r2['width']) - current['x']
+                current['height'] = max(current['y'] + current['height'], r2['y'] + r2['height']) - current['y']
+                used.add(j)
+        merged.append(current)
+    
+    return merged
+
+
+def process_video_delogo(video_path, output_path, regions):
+    """使用FFmpeg delogo滤镜处理视频"""
+    filter_parts = []
+    for r in regions:
+        if isinstance(r, dict):
+            x, y, w, h = r.get('x', 0), r.get('y', 0), r.get('width', 100), r.get('height', 50)
+        elif isinstance(r, (list, tuple)) and len(r) >= 4:
+            x, y, w, h = r[0], r[1], r[2], r[3]
+        else:
+            continue
+        filter_parts.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
+    
+    filter_str = ",".join(filter_parts)
+    cmd = ['ffmpeg', '-i', video_path, '-vf', filter_str, '-c:a', 'copy', '-y', output_path]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception(f"FFmpeg error: {result.stderr[:500]}")
+    
+    return output_path
+
